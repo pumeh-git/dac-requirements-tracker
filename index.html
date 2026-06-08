@@ -34,6 +34,9 @@
 <script type="text/babel">
 const { useState, useEffect, useRef } = React;
 
+const DATA_VERSION = "v4"; // bump this to force a localStorage reset
+const STORAGE_KEY = "dac-wg-reqs";
+
 const MEMBERS = [
   { id:"philip",  name:"Philip Umeh",       role:"Driver · HWInf Docs/SCM",    avatar:"PU", color:"#76B900" },
   { id:"joshua",  name:"Joshua Hanson",      role:"Testgen / NVFarm / FRDB",    avatar:"JH", color:"#4A9EE0" },
@@ -168,8 +171,8 @@ function Avatar({member,size=28}){
 }
 
 function App(){
-  const [reqs,setReqs]=useState(()=>{try{const s=localStorage.getItem("dac-wg-reqs");return s?JSON.parse(s).reqs||INITIAL_REQS:INITIAL_REQS;}catch(e){return INITIAL_REQS;}});
-  const [decisions,setDecisions]=useState(()=>{try{const s=localStorage.getItem("dac-wg-reqs");return s?JSON.parse(s).decisions||INITIAL_DECISIONS:INITIAL_DECISIONS;}catch(e){return INITIAL_DECISIONS;}});
+  const [reqs,setReqs]=useState(()=>{try{const s=localStorage.getItem(STORAGE_KEY);const p=s?JSON.parse(s):null;if(p&&p.version===DATA_VERSION)return p.reqs||INITIAL_REQS;return INITIAL_REQS;}catch(e){return INITIAL_REQS;}});
+  const [decisions,setDecisions]=useState(()=>{try{const s=localStorage.getItem(STORAGE_KEY);const p=s?JSON.parse(s):null;if(p&&p.version===DATA_VERSION)return p.decisions||INITIAL_DECISIONS;return INITIAL_DECISIONS;}catch(e){return INITIAL_DECISIONS;}});
   const [activeMember,setActiveMember]=useState("philip");
   const [activeDomain,setActiveDomain]=useState("all");
   const [activeReq,setActiveReq]=useState(null);
@@ -182,7 +185,7 @@ function App(){
   const [tab,setTab]=useState("requirements");
   const [showAddReq,setShowAddReq]=useState(false);
 
-  useEffect(()=>{try{localStorage.setItem("dac-wg-reqs",JSON.stringify({reqs,decisions}));}catch(e){}},[reqs,decisions]);
+  useEffect(()=>{try{localStorage.setItem(STORAGE_KEY,JSON.stringify({version:DATA_VERSION,reqs,decisions}));}catch(e){}},[reqs,decisions]);
 
   const castVote=(reqId,vote)=>{
     setReqs(prev=>prev.map(r=>r.id===reqId?{...r,votes:{...r.votes,[activeMember]:vote}}:r));
@@ -212,7 +215,7 @@ function App(){
     setNewReqText("");setNewReqRationale("");setShowAddReq(false);
   };
 
-  const resetAll=()=>{if(window.confirm("Reset all votes and comments to initial state?")){localStorage.removeItem("dac-wg-reqs");setReqs(INITIAL_REQS);setDecisions(INITIAL_DECISIONS);setActiveReq(null);}};
+  const resetAll=()=>{if(window.confirm("Reset all votes and comments to initial state?")){localStorage.removeItem(STORAGE_KEY);setReqs(INITIAL_REQS);setDecisions(INITIAL_DECISIONS);setActiveReq(null);}};
 
   const getConvergence=(req)=>{
     const votes=Object.values(req.votes).filter(Boolean);
