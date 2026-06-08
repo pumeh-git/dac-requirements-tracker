@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Docs-as-Code Working Group · Requirements Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'DM Sans','Segoe UI',sans-serif;background:#0a0a0f;min-height:100vh;color:#e0e0e0}
+  ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:#111}::-webkit-scrollbar-thumb{background:#333;border-radius:2px}
+  .req-row:hover{background:#141420!important}
+  .tab-btn{background:none;border:none;cursor:pointer;padding:8px 18px;font-size:13px;font-weight:600;transition:all .15s;font-family:inherit;border-bottom:2px solid transparent}
+  .tab-btn.active{color:#76B900;border-bottom-color:#76B900}
+  .tab-btn:not(.active){color:#666}
+  .tab-btn:not(.active):hover{color:#aaa}
+  .vote-btn{background:none;border:1px solid #333;color:#666;border-radius:4px;padding:3px 10px;font-size:11px;cursor:pointer;transition:all .15s;font-family:'DM Mono',monospace;font-weight:600}
+  .vote-btn:hover{border-color:#555;color:#aaa}
+  .vote-btn.agree{border-color:#76B900;color:#76B900;background:#76B90015}
+  .vote-btn.challenge{border-color:#E74C3C;color:#E74C3C;background:#E74C3C15}
+  .vote-btn.discuss{border-color:#F39C12;color:#F39C12;background:#F39C1215}
+  input,textarea,select{background:#111;border:1px solid #2a2a2a;color:#e0e0e0;border-radius:6px;font-family:inherit;outline:none;transition:border .15s}
+  input:focus,textarea:focus,select:focus{border-color:#76B900}
+  select option{background:#1a1a1a}
+  .domain-card:hover{border-color:#76B90040!important}
+  .contested-row:hover{background:#1a1010!important}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+const MEMBERS = [
+  { id:"philip",  name:"Philip Umeh",       role:"Driver · HWInf Docs/SCM",    avatar:"PU", color:"#76B900" },
+  { id:"joshua",  name:"Joshua Hanson",      role:"Testgen / NVFarm / FRDB",    avatar:"JH", color:"#4A9EE0" },
+  { id:"matt",    name:"Matt Madson",        role:"HWInf / Talos",              avatar:"MM", color:"#E06B4A" },
+  { id:"ryan_r",  name:"Ryan Russell",       role:"DCS / DCSS / NVDocs",        avatar:"RR", color:"#9B59B6" },
+  { id:"bryan",   name:"Bryan Hunt",         role:"HWInf App Standards",        avatar:"BH", color:"#E67E22" },
+  { id:"george",  name:"George Stockfisch",  role:"SCM",                        avatar:"GS", color:"#1ABC9C" },
+  { id:"jason",   name:"Jason Anderson",     role:"CI Team",                    avatar:"JA", color:"#E74C3C" },
+  { id:"angela",  name:"Angela Kim",         role:"HWInf / Aura",               avatar:"AK", color:"#F39C12" },
+  { id:"adrian",  name:"Adrian Kalaveshi",   role:"SCM",                        avatar:"AD", color:"#3498DB" },
+  { id:"sally",   name:"Sally Osborne",      role:"HWInf Leadership",           avatar:"SO", color:"#E91E8C" },
+];
+
+const DOMAINS = [
+  { id:"source",     label:"Source Control",       icon:"⬡" },
+  { id:"authoring",  label:"Authoring Format",      icon:"◈" },
+  { id:"publishing", label:"Publishing",            icon:"◎" },
+  { id:"cicd",       label:"CI/CD Quality",         icon:"⟳" },
+  { id:"taxonomy",   label:"Taxonomy & Contract",   icon:"⊞" },
+  { id:"versioning", label:"Versioning",            icon:"◷" },
+  { id:"ai",         label:"AI Readiness",          icon:"◉" },
+];
+
+const INITIAL_REQS = [
+  {id:"SC-1",domain:"source",priority:"M",text:"Documentation must live in the same repository as the code it describes",rationale:"Eliminates dual-maintenance; keeps docs versioned with code",votes:{philip:"agree",sally:"agree"},discussions:[],status:"open"},
+  {id:"SC-2",domain:"source",priority:"M",text:"Both GitLab and Perforce must be supported as source control systems",rationale:"CI team and legacy systems have code in P4; cannot mandate migration",votes:{philip:"agree",jason:"agree",sally:"agree"},discussions:[{author:"jason",text:"P4 has 20yr-old codebases still in active development — this is non-negotiable for CI team",ts:"Jun 5"}],status:"open"},
+  {id:"SC-3",domain:"source",priority:"M",text:"Documentation source must live under a docs/ folder at repo root",rationale:"Standard convention; all existing implementations already follow this",votes:{philip:"agree"},discussions:[],status:"open"},
+  {id:"SC-4",domain:"source",priority:"S",text:"A CODEOWNERS or equivalent ownership file must exist for each doc set",rationale:"Enables automated freshness alerts and review routing",votes:{},discussions:[],status:"open"},
+  {id:"AF-1",domain:"authoring",priority:"M",text:"Markdown (CommonMark) is the standard authoring format for HWInf Docs-as-Code",rationale:"Used by 6 of 7 existing implementations; widely supported; developer-friendly",votes:{philip:"agree",bryan:"agree",george:"agree",matt:"agree"},discussions:[{author:"ryan_r",text:"NVDocs uses RST — we need to explicitly document this as a supported exception, not a violation",ts:"Jun 5"}],status:"open"},
+  {id:"AF-2",domain:"authoring",priority:"S",text:"RST-based workflows (NVDocs) are a supported exception where team requirements justify it",rationale:"NVDocs is production at DCSS; migration not viable short-term",votes:{ryan_r:"agree",philip:"agree"},discussions:[{author:"ryan_r",text:"I'd push for this to be M, not S — we shouldn't treat a production system as a second-class citizen",ts:"Jun 5"}],status:"open"},
+  {id:"AF-3",domain:"authoring",priority:"S",text:"Diagrams must be expressed as code (Mermaid, WaveDrom, WireViz) where practical",rationale:"Enables version control, CI validation, and AI readability of diagrams",votes:{matt:"agree",philip:"agree"},discussions:[{author:"matt",text:"Talos Croqui/Neolesk already handles WaveDrom/WireViz SVG generation — worth evaluating as shared org service",ts:"Jun 5"}],status:"open"},
+  {id:"AF-4",domain:"authoring",priority:"M",text:"Binary diagram files (Visio, PNG) permitted where diagrams-as-code is not feasible",rationale:"Hardware schematics cannot always be converted to text-based formats",votes:{ryan_r:"agree",jason:"agree"},discussions:[{author:"ryan_r",text:"AI-generated Visio-style diagrams from hardware schematics is a major gap — worth tracking separately",ts:"Jun 5"}],status:"open"},
+  {id:"PT-1",domain:"publishing",priority:"M",text:"All documentation must be published to Confluence (nvidia.atlassian.net)",rationale:"Non-negotiable per HWInf leadership; required for Glean/NVSearch indexing",votes:{philip:"agree",sally:"agree",george:"agree",joshua:"agree"},discussions:[{author:"sally",text:"This comes from Sharon — it's a hard requirement. Glean can't index what's not in Confluence.",ts:"Jun 5"},{author:"joshua",text:"We currently publish to K8s portal — we can add Confluence as a required additional target",ts:"Jun 5"}],status:"open"},
+  {id:"PT-2",domain:"publishing",priority:"M",text:"Additional publish targets (static site, PDF, external) are permitted alongside Confluence",rationale:"NVDocs needs PDF; App Standards uses static site; DCS needs external publish capability",votes:{ryan_r:"agree",bryan:"agree",philip:"agree"},discussions:[],status:"open"},
+  {id:"PT-3",domain:"publishing",priority:"M",text:"Auto-generated Confluence pages must be marked and protected from manual overwrites",rationale:"Prevents content loss when pipeline re-publishes to the same page",votes:{philip:"agree"},discussions:[],status:"open"},
+  {id:"PT-4",domain:"publishing",priority:"S",text:"MR preview: publish to Confluence staging page on MR open, promote on merge",rationale:"GitLab FAQ and NVDocs both implement this — reduces publish errors significantly",votes:{george:"agree",ryan_r:"agree"},discussions:[{author:"philip",text:"My PoC currently lacks this — high priority for me to add once standard is agreed",ts:"Jun 5"}],status:"open"},
+  {id:"PT-5",domain:"publishing",priority:"C",text:"Atlassian native Markdown-to-Confluence (~Sep 2026) to be evaluated as tooling replacement",rationale:"Could eliminate mark CLI dependency and simplify pipeline complexity org-wide",votes:{philip:"agree",sally:"agree"},discussions:[{author:"sally",text:"We have contacts on Atlassian product team — they demoed round-trip Markdown/Confluence editing",ts:"Jun 2"},{author:"ryan_r",text:"Would have helped us a lot — we had to build our own Confluence publish tooling",ts:"Jun 5"}],status:"open"},
+  {id:"CI-1",domain:"cicd",priority:"M",text:"A shared GitLab CI include template for docs lint + publish must be provided",rationale:"Reduces per-team setup cost; Test Auto Pipeline already has templates/source-repo-ci.yml",votes:{joshua:"agree",philip:"agree"},discussions:[],status:"open"},
+  {id:"CI-2",domain:"cicd",priority:"M",text:"Markdown lint (markdownlint) must run on every MR touching docs/**",rationale:"Catches structural issues early; all teams align on shared .markdownlint.json config",votes:{philip:"agree",bryan:"agree"},discussions:[],status:"open"},
+  {id:"CI-3",domain:"cicd",priority:"S",text:"Vale + NVIDIA prose rules must run as part of the standard CI pipeline",rationale:"Only Philip's PoC has this today — brings style/tone consistency org-wide",votes:{philip:"agree"},discussions:[{author:"matt",text:"Where would the shared NVIDIA Vale rules live? Needs a home everyone can pull from",ts:"Jun 5"}],status:"open"},
+  {id:"CI-4",domain:"cicd",priority:"M",text:"Link validation must run on every MR touching docs/**",rationale:"Broken links erode doc trust; Test Auto Pipeline already has validate_links.py",votes:{joshua:"agree",philip:"agree"},discussions:[],status:"open"},
+  {id:"CI-5",domain:"cicd",priority:"S",text:"A make docs or equivalent standard hook must be defined for all participating repos",rationale:"CI DaaS proposes this as the standard entry point — consistent across all pipelines",votes:{jason:"agree"},discussions:[],status:"open"},
+  {id:"CI-6",domain:"cicd",priority:"S",text:"Phased release gate: soft gate (non-blocking) → hard gate (blocks release) on docs failures",rationale:"CI DaaS model — allows teams to ramp without disrupting existing release pipelines",votes:{jason:"agree",ryan_r:"agree"},discussions:[{author:"ryan_r",text:"Strongly recommend distributed services architecture — don't build monolithic tooling around Confluence",ts:"Jun 5"},{author:"jason",text:"Hard gate (no docs = no release) should be the long-term target but we phase into it",ts:"Jun 5"}],status:"open"},
+  {id:"TX-1",domain:"taxonomy",priority:"M",text:"A minimum documentation contract must be defined per service or platform",rationale:"Ensures every service has: README, user guide, runbook, API/CLI ref, architecture overview",votes:{philip:"agree",joshua:"agree"},discussions:[{author:"joshua",text:"Custom Docs Spec already defines this well — propose we adopt it as the org baseline rather than starting from scratch",ts:"Jun 5"}],status:"open"},
+  {id:"TX-2",domain:"taxonomy",priority:"S",text:"Standard folder taxonomy: getting-started/, how-to/, concepts/, reference/, troubleshooting/, runbooks/",rationale:"Custom Docs Spec prescribes this; 5 of 7 current implementations have no taxonomy today",votes:{joshua:"agree",philip:"agree"},discussions:[],status:"open"},
+  {id:"TX-3",domain:"taxonomy",priority:"M",text:"Confluence page trees and labels must be standardized across all teams",rationale:"Inconsistent page trees hurt Glean indexing and reader experience",votes:{philip:"agree",sally:"agree"},discussions:[],status:"open"},
+  {id:"TX-4",domain:"taxonomy",priority:"M",text:"Docs must use stable machine-readable headings and consistent metadata for AI consumption",rationale:"Required for AI agents, chatbots, and search assistants to consume docs reliably",votes:{angela:"agree",matt:"agree"},discussions:[{author:"angela",text:"Agentic Doc Refresh depends on stable structure — critical for the auto-refresh pipeline to work",ts:"Jun 3"}],status:"open"},
+  {id:"VS-1",domain:"versioning",priority:"S",text:"Documentation versioning must be coupled to code release tags where applicable",rationale:"Test Auto Pipeline and NVDocs both do this — ensures docs stay aligned with releases",votes:{joshua:"agree",ryan_r:"agree"},discussions:[],status:"open"},
+  {id:"VS-2",domain:"versioning",priority:"S",text:"A latest symlink or equivalent must always resolve to the most current stable version",rationale:"CI DaaS and Test Auto Pipeline both implement this pattern",votes:{joshua:"agree"},discussions:[],status:"open"},
+  {id:"VS-3",domain:"versioning",priority:"M",text:"Single-page and FAQ-style docs without versioning are acceptable for appropriate content types",rationale:"Not all docs need versioning — GitLab FAQ pattern is valid for certain doc types",votes:{george:"agree",philip:"agree"},discussions:[],status:"open"},
+  {id:"AI-1",domain:"ai",priority:"M",text:"Documentation structure must enable AI agents to consume and reuse it reliably",rationale:"Structured, labeled content feeds authoring agents and chatbots; unstable headings break AI tooling",votes:{angela:"agree",matt:"agree",philip:"agree"},discussions:[{author:"matt",text:"Proposal: AI agent skill that inspects a team's environment and recommends the right Docs-as-Code setup",ts:"Jun 5"}],status:"open"},
+  {id:"AI-2",domain:"ai",priority:"S",text:"Auto-generated docs (API refs, CLI help, config schemas) must be included where feasible",rationale:"CI DaaS and NVDocs both do this; reduces manual authoring burden significantly",votes:{ryan_r:"agree",jason:"agree"},discussions:[],status:"open"},
+  {id:"AI-3",domain:"ai",priority:"S",text:"Agentic doc refresh workflows must be compatible with the standard CI pipeline",rationale:"Angela's Auto Doc Refresh project needs to hook into whatever CI pipeline is defined",votes:{angela:"agree"},discussions:[{author:"angela",text:"Once we have a standard pipeline agreed, this becomes immediately actionable",ts:"Jun 3"}],status:"open"},
+];
+
+const INITIAL_DECISIONS = [
+  {id:1,date:"Jun 5, 2026",text:"Confluence is a non-negotiable publishing target for all implementations",by:"All attendees — Kick-off",status:"agreed"},
+  {id:2,date:"Jun 5, 2026",text:"Both GitLab and Perforce will be supported — docs live where code lives",by:"All attendees — Kick-off",status:"agreed"},
+  {id:3,date:"Jun 5, 2026",text:"Working group uses this live doc as async scratchpad + weekly meetings",by:"Jason Anderson, Philip Umeh",status:"agreed"},
+  {id:4,date:"Jun 5, 2026",text:"Target: requirements agreed by Jul 31 · framework rolled out by end of Q3 FY27",by:"Sally Osborne",status:"agreed"},
+];
+
+const PRIORITY_COLORS = {M:"#E74C3C",S:"#F39C12",C:"#3498DB",W:"#95A5A6"};
+const PRIORITY_LABELS = {M:"Must",S:"Should",C:"Could",W:"Won't"};
+
+function Avatar({member,size=28}){
+  const m=MEMBERS.find(x=>x.id===member)||{avatar:"?",color:"#666",name:member};
+  return <span title={m.name} style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:size,height:size,borderRadius:"50%",background:m.color+"22",border:`1.5px solid ${m.color}`,color:m.color,fontSize:size*0.38,fontWeight:700,fontFamily:"'DM Mono',monospace",flexShrink:0,cursor:"default",userSelect:"none"}}>{m.avatar}</span>;
+}
+
+function App(){
+  const [reqs,setReqs]=useState(()=>{try{const s=localStorage.getItem("dac-wg-reqs");return s?JSON.parse(s).reqs||INITIAL_REQS:INITIAL_REQS;}catch(e){return INITIAL_REQS;}});
+  const [decisions,setDecisions]=useState(()=>{try{const s=localStorage.getItem("dac-wg-reqs");return s?JSON.parse(s).decisions||INITIAL_DECISIONS:INITIAL_DECISIONS;}catch(e){return INITIAL_DECISIONS;}});
+  const [activeMember,setActiveMember]=useState("philip");
+  const [activeDomain,setActiveDomain]=useState("all");
+  const [activeReq,setActiveReq]=useState(null);
+  const [newComment,setNewComment]=useState("");
+  const [newDecision,setNewDecision]=useState("");
+  const [newReqText,setNewReqText]=useState("");
+  const [newReqRationale,setNewReqRationale]=useState("");
+  const [newReqDomain,setNewReqDomain]=useState("source");
+  const [newReqPriority,setNewReqPriority]=useState("M");
+  const [tab,setTab]=useState("requirements");
+  const [showAddReq,setShowAddReq]=useState(false);
+
+  useEffect(()=>{try{localStorage.setItem("dac-wg-reqs",JSON.stringify({reqs,decisions}));}catch(e){}},[reqs,decisions]);
+
+  const castVote=(reqId,vote)=>{
+    setReqs(prev=>prev.map(r=>r.id===reqId?{...r,votes:{...r.votes,[activeMember]:r.votes[activeMember]===vote?undefined:{...r.votes,[activeMember]:vote}[activeMember]}}:r));
+    setReqs(prev=>prev.map(r=>r.id===reqId?{...r,votes:{...r.votes,[activeMember]:vote}}:r));
+  };
+
+  const addComment=(reqId)=>{
+    if(!newComment.trim())return;
+    const now=new Date().toLocaleDateString("en-US",{month:"short",day:"numeric"});
+    setReqs(prev=>prev.map(r=>r.id===reqId?{...r,discussions:[...r.discussions,{author:activeMember,text:newComment.trim(),ts:now}]}:r));
+    setNewComment("");
+  };
+
+  const addDecision=()=>{
+    if(!newDecision.trim())return;
+    const now=new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
+    const m=MEMBERS.find(x=>x.id===activeMember);
+    setDecisions(prev=>[...prev,{id:Date.now(),date:now,text:newDecision.trim(),by:m?.name,status:"agreed"}]);
+    setNewDecision("");
+  };
+
+  const addRequirement=()=>{
+    if(!newReqText.trim())return;
+    const existing=reqs.filter(r=>r.domain===newReqDomain);
+    const pfx=newReqDomain.slice(0,2).toUpperCase();
+    const id=`${pfx}-${existing.length+1}`;
+    setReqs(prev=>[...prev,{id,domain:newReqDomain,priority:newReqPriority,text:newReqText.trim(),rationale:newReqRationale.trim(),votes:{[activeMember]:"agree"},discussions:[],status:"open"}]);
+    setNewReqText("");setNewReqRationale("");setShowAddReq(false);
+  };
+
+  const resetAll=()=>{if(window.confirm("Reset all votes and comments to initial state?")){localStorage.removeItem("dac-wg-reqs");setReqs(INITIAL_REQS);setDecisions(INITIAL_DECISIONS);setActiveReq(null);}};
+
+  const getConvergence=(req)=>{
+    const votes=Object.values(req.votes).filter(Boolean);
+    if(votes.length===0)return{pct:0,label:"No votes",color:"#555"};
+    const agree=votes.filter(v=>v==="agree").length;
+    const challenge=votes.filter(v=>v==="challenge").length;
+    const pct=Math.round((agree/MEMBERS.length)*100);
+    if(challenge>0)return{pct,label:"Contested",color:"#E74C3C"};
+    if(pct>=70)return{pct,label:"Converging",color:"#76B900"};
+    if(pct>=40)return{pct,label:"Progressing",color:"#F39C12"};
+    return{pct,label:"Needs input",color:"#3498DB"};
+  };
+
+  const getDomainStats=(domainId)=>{
+    const dr=reqs.filter(r=>r.domain===domainId);
+    return{total:dr.length,converging:dr.filter(r=>getConvergence(r).label==="Converging").length,contested:dr.filter(r=>Object.values(r.votes).includes("challenge")).length};
+  };
+
+  const filtered=activeDomain==="all"?reqs:reqs.filter(r=>r.domain===activeDomain);
+  const totalConverging=reqs.filter(r=>getConvergence(r).label==="Converging").length;
+  const activeReqData=reqs.find(r=>r.id===activeReq);
+  const currentMember=MEMBERS.find(m=>m.id===activeMember);
+  const overallPct=Math.round((totalConverging/reqs.length)*100);
+
+  return (
+    <div style={{fontFamily:"'DM Sans','Segoe UI',sans-serif",background:"#0a0a0f",minHeight:"100vh",color:"#e0e0e0"}}>
+      {/* Header */}
+      <div style={{background:"#0d0d1a",borderBottom:"1px solid #1a1a2e",padding:"0 28px",position:"sticky",top:0,zIndex:100}}>
+        <div style={{maxWidth:1400,margin:"0 auto"}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",paddingTop:16,paddingBottom:10}}>
+            <div>
+              <div style={{fontSize:10,fontFamily:"'DM Mono',monospace",color:"#76B900",letterSpacing:3,textTransform:"uppercase",marginBottom:4}}>NVIDIA · HWInf · Docs-as-Code Working Group</div>
+              <h1 style={{fontSize:20,fontWeight:700,color:"#fff",letterSpacing:-0.5}}>Requirements Tracker</h1>
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:12}}>
+              <div style={{textAlign:"right"}}>
+                <div style={{fontSize:10,color:"#555",marginBottom:3}}>Viewing as</div>
+                <select value={activeMember} onChange={e=>setActiveMember(e.target.value)} style={{padding:"5px 10px",fontSize:12,minWidth:160}}>
+                  {MEMBERS.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}
+                </select>
+              </div>
+              <div style={{background:"#76B90015",border:"1px solid #76B90040",borderRadius:8,padding:"8px 16px",textAlign:"center",minWidth:80}}>
+                <div style={{fontSize:20,fontWeight:700,color:"#76B900",fontFamily:"'DM Mono',monospace"}}>{overallPct}%</div>
+                <div style={{fontSize:9,color:"#76B900",opacity:.7,textTransform:"uppercase",letterSpacing:1}}>Convergence</div>
+              </div>
+              <div style={{background:"#ffffff08",border:"1px solid #222",borderRadius:8,padding:"8px 16px",textAlign:"center",minWidth:60}}>
+                <div style={{fontSize:20,fontWeight:700,color:"#aaa",fontFamily:"'DM Mono',monospace"}}>{totalConverging}<span style={{fontSize:12,color:"#555"}}>/{reqs.length}</span></div>
+                <div style={{fontSize:9,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Agreed</div>
+              </div>
+            </div>
+          </div>
+          <div style={{display:"flex",gap:0,borderTop:"1px solid #1a1a2e",alignItems:"center"}}>
+            {["requirements","decisions","dashboard"].map(t=>(
+              <button key={t} className={`tab-btn${tab===t?" active":""}`} onClick={()=>setTab(t)} style={{textTransform:"capitalize"}}>{t}</button>
+            ))}
+            <button onClick={resetAll} style={{marginLeft:"auto",background:"none",border:"none",color:"#333",fontSize:11,cursor:"pointer",padding:"8px 12px",fontFamily:"inherit"}}>↺ Reset</button>
+          </div>
+        </div>
+      </div>
+
+      <div style={{maxWidth:1400,margin:"0 auto",padding:"24px 28px"}}>
+
+        {/* REQUIREMENTS TAB */}
+        {tab==="requirements" && (
+          <div style={{display:"grid",gridTemplateColumns:activeReq?"1fr 440px":"1fr",gap:20,alignItems:"start"}}>
+            <div>
+              {/* Domain filter */}
+              <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:16,flexWrap:"wrap"}}>
+                {[{id:"all",label:"All",icon:"◈"},...DOMAINS].map(d=>{
+                  const isAll=d.id==="all";
+                  const active=activeDomain===d.id;
+                  const stats=isAll?null:getDomainStats(d.id);
+                  return(
+                    <button key={d.id} onClick={()=>setActiveDomain(d.id)} style={{padding:"5px 12px",borderRadius:20,border:`1px solid ${active?"#76B900":"#222"}`,background:active?"#76B90015":"none",color:active?"#76B900":"#666",fontSize:12,cursor:"pointer",fontWeight:600,display:"flex",alignItems:"center",gap:4,transition:"all .15s"}}>
+                      <span>{d.icon}</span>{d.label}
+                      {stats&&stats.converging>0&&<span style={{background:"#76B900",color:"#000",borderRadius:10,padding:"0 5px",fontSize:9,fontWeight:700}}>{stats.converging}</span>}
+                      {stats&&stats.contested>0&&<span style={{background:"#E74C3C",color:"#fff",borderRadius:10,padding:"0 5px",fontSize:9,fontWeight:700}}>!</span>}
+                    </button>
+                  );
+                })}
+                <button onClick={()=>setShowAddReq(!showAddReq)} style={{marginLeft:"auto",padding:"5px 14px",borderRadius:6,border:"1px solid #76B90050",background:"#76B90015",color:"#76B900",fontSize:12,cursor:"pointer",fontWeight:600}}>+ Add</button>
+              </div>
+
+              {showAddReq&&(
+                <div style={{background:"#111",border:"1px solid #76B90030",borderRadius:10,padding:16,marginBottom:16}}>
+                  <div style={{fontSize:12,fontWeight:700,color:"#76B900",marginBottom:10}}>New Requirement — added by {currentMember?.name}</div>
+                  <div style={{display:"flex",gap:8,marginBottom:8}}>
+                    <select value={newReqDomain} onChange={e=>setNewReqDomain(e.target.value)} style={{padding:"6px 10px",fontSize:12}}>
+                      {DOMAINS.map(d=><option key={d.id} value={d.id}>{d.label}</option>)}
+                    </select>
+                    <select value={newReqPriority} onChange={e=>setNewReqPriority(e.target.value)} style={{padding:"6px 10px",fontSize:12,width:110}}>
+                      {["M","S","C","W"].map(p=><option key={p} value={p}>{PRIORITY_LABELS[p]} ({p})</option>)}
+                    </select>
+                  </div>
+                  <textarea value={newReqText} onChange={e=>setNewReqText(e.target.value)} placeholder="Requirement statement..." rows={2} style={{width:"100%",padding:"8px 10px",fontSize:13,marginBottom:6,resize:"vertical"}}/>
+                  <textarea value={newReqRationale} onChange={e=>setNewReqRationale(e.target.value)} placeholder="Rationale (optional)..." rows={1} style={{width:"100%",padding:"8px 10px",fontSize:12,marginBottom:8,resize:"vertical"}}/>
+                  <div style={{display:"flex",gap:8}}>
+                    <button onClick={addRequirement} style={{padding:"6px 18px",background:"#76B900",border:"none",borderRadius:6,color:"#000",fontWeight:700,fontSize:12,cursor:"pointer"}}>Add</button>
+                    <button onClick={()=>setShowAddReq(false)} style={{padding:"6px 14px",background:"none",border:"1px solid #333",borderRadius:6,color:"#666",fontSize:12,cursor:"pointer"}}>Cancel</button>
+                  </div>
+                </div>
+              )}
+
+              {(activeDomain==="all"?DOMAINS:DOMAINS.filter(d=>d.id===activeDomain)).map(domain=>{
+                const domReqs=filtered.filter(r=>r.domain===domain.id);
+                if(domReqs.length===0)return null;
+                const stats=getDomainStats(domain.id);
+                return(
+                  <div key={domain.id} style={{marginBottom:24}}>
+                    <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+                      <span style={{fontSize:15}}>{domain.icon}</span>
+                      <span style={{fontSize:12,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1.5}}>{domain.label}</span>
+                      <span style={{fontSize:11,color:"#444",fontFamily:"'DM Mono',monospace"}}>{stats.converging}/{stats.total}</span>
+                      <div style={{flex:1,height:2,background:"#1a1a1a",borderRadius:1}}>
+                        <div style={{height:2,width:`${(stats.converging/stats.total)*100}%`,background:"#76B900",borderRadius:1,transition:"width .5s"}}/>
+                      </div>
+                      {stats.contested>0&&<span style={{fontSize:11,color:"#E74C3C",fontWeight:600}}>⚠ {stats.contested} contested</span>}
+                    </div>
+                    {domReqs.map(req=>{
+                      const conv=getConvergence(req);
+                      const isActive=activeReq===req.id;
+                      const voteCount=Object.values(req.votes).filter(Boolean).length;
+                      return(
+                        <div key={req.id} className="req-row" onClick={()=>setActiveReq(isActive?null:req.id)} style={{background:isActive?"#141420":"#0e0e18",border:`1px solid ${isActive?"#76B90040":"#1a1a1a"}`,borderRadius:8,padding:"11px 14px",marginBottom:5,cursor:"pointer",transition:"all .15s"}}>
+                          <div style={{display:"flex",alignItems:"flex-start",gap:10}}>
+                            <span style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#444",paddingTop:2,flexShrink:0,minWidth:34}}>{req.id}</span>
+                            <span style={{background:PRIORITY_COLORS[req.priority]+"22",color:PRIORITY_COLORS[req.priority],border:`1px solid ${PRIORITY_COLORS[req.priority]}40`,borderRadius:4,padding:"1px 6px",fontSize:10,fontWeight:700,fontFamily:"'DM Mono',monospace",flexShrink:0}}>{req.priority}</span>
+                            <span style={{flex:1,fontSize:13,color:"#ccc",lineHeight:1.5}}>{req.text}</span>
+                            <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+                              <div style={{display:"flex",gap:2}}>
+                                {Object.entries(req.votes).filter(([,v])=>v).slice(0,5).map(([mid,v])=>{
+                                  const m=MEMBERS.find(x=>x.id===mid);
+                                  return <span key={mid} title={`${m?.name}: ${v}`} style={{width:18,height:18,borderRadius:"50%",background:(m?.color||"#666")+"20",border:`1.5px solid ${v==="agree"?"#76B900":v==="challenge"?"#E74C3C":"#F39C12"}`,display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:7,fontWeight:700,color:m?.color||"#aaa"}}>{m?.avatar||"?"}</span>;
+                                })}
+                                {voteCount>5&&<span style={{width:18,height:18,borderRadius:"50%",background:"#333",display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:8,color:"#888"}}>+{voteCount-5}</span>}
+                              </div>
+                              <span style={{fontSize:11,color:conv.color,fontWeight:600,fontFamily:"'DM Mono',monospace",minWidth:80,textAlign:"right"}}>{conv.label}</span>
+                              {req.discussions.length>0&&<span style={{fontSize:11,color:"#444"}}>💬{req.discussions.length}</span>}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Detail panel */}
+            {activeReqData&&(
+              <div style={{background:"#0e0e18",border:"1px solid #1e1e30",borderRadius:12,padding:20,position:"sticky",top:80}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <span style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:"#555"}}>{activeReqData.id}</span>
+                    <span style={{background:PRIORITY_COLORS[activeReqData.priority]+"22",color:PRIORITY_COLORS[activeReqData.priority],border:`1px solid ${PRIORITY_COLORS[activeReqData.priority]}40`,borderRadius:4,padding:"2px 8px",fontSize:11,fontWeight:700}}>{PRIORITY_LABELS[activeReqData.priority]}</span>
+                  </div>
+                  <button onClick={()=>setActiveReq(null)} style={{background:"none",border:"none",color:"#555",cursor:"pointer",fontSize:18,lineHeight:1,padding:"0 4px"}}>×</button>
+                </div>
+
+                <p style={{fontSize:14,color:"#e0e0e0",lineHeight:1.6,marginBottom:10,fontWeight:500}}>{activeReqData.text}</p>
+                {activeReqData.rationale&&<p style={{fontSize:12,color:"#555",lineHeight:1.5,marginBottom:14,fontStyle:"italic",borderLeft:"2px solid #222",paddingLeft:10}}>{activeReqData.rationale}</p>}
+
+                {(()=>{const c=getConvergence(activeReqData);return(
+                  <div style={{marginBottom:14}}>
+                    <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:4}}>
+                      <span style={{color:"#555"}}>Convergence</span>
+                      <span style={{color:c.color,fontWeight:700}}>{c.label} · {c.pct}%</span>
+                    </div>
+                    <div style={{height:4,background:"#1a1a1a",borderRadius:2}}>
+                      <div style={{height:4,width:`${c.pct}%`,background:c.color,borderRadius:2,transition:"width .5s"}}/>
+                    </div>
+                  </div>
+                );})()}
+
+                <div style={{marginBottom:14}}>
+                  <div style={{fontSize:11,color:"#555",marginBottom:8}}>Cast your vote as <strong style={{color:currentMember?.color}}>{currentMember?.name}</strong></div>
+                  <div style={{display:"flex",gap:6}}>
+                    {["agree","challenge","discuss"].map(v=>(
+                      <button key={v} className={`vote-btn${activeReqData.votes[activeMember]===v?" "+v:""}`} onClick={e=>{e.stopPropagation();castVote(activeReqData.id,v);}} style={{flex:1,textTransform:"capitalize"}}>
+                        {v==="agree"?"✓ Agree":v==="challenge"?"✕ Challenge":"? Discuss"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{marginBottom:14}}>
+                  <div style={{fontSize:11,color:"#555",marginBottom:8,textTransform:"uppercase",letterSpacing:1}}>All votes</div>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+                    {MEMBERS.map(m=>{
+                      const v=activeReqData.votes[m.id];
+                      return(
+                        <div key={m.id} title={`${m.name}: ${v||"no vote"}`} style={{display:"flex",alignItems:"center",gap:4,padding:"2px 7px",borderRadius:20,background:v?(v==="agree"?"#76B90012":v==="challenge"?"#E74C3C12":"#F39C1212"):"#111",border:`1px solid ${v?(v==="agree"?"#76B90035":v==="challenge"?"#E74C3C35":"#F39C1235"):"#1a1a1a"}`}}>
+                          <span style={{width:14,height:14,borderRadius:"50%",background:m.color+"25",display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:6,fontWeight:700,color:m.color}}>{m.avatar}</span>
+                          <span style={{fontSize:10,color:v?(v==="agree"?"#76B900":v==="challenge"?"#E74C3C":"#F39C12"):"#333",fontFamily:"'DM Mono',monospace"}}>{v||"–"}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{fontSize:11,color:"#555",marginBottom:8,textTransform:"uppercase",letterSpacing:1}}>Discussion</div>
+                  <div style={{maxHeight:240,overflowY:"auto",marginBottom:8}}>
+                    {activeReqData.discussions.length===0&&<p style={{fontSize:12,color:"#333",fontStyle:"italic",padding:"8px 0"}}>No comments yet — start the discussion</p>}
+                    {activeReqData.discussions.map((d,i)=>{
+                      const m=MEMBERS.find(x=>x.id===d.author);
+                      return(
+                        <div key={i} style={{marginBottom:8,padding:"8px 10px",background:"#111",borderRadius:6,borderLeft:`2px solid ${m?.color||"#555"}`}}>
+                          <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
+                            <span style={{fontSize:11,fontWeight:700,color:m?.color||"#aaa"}}>{m?.name||d.author}</span>
+                            <span style={{fontSize:10,color:"#444"}}>{d.ts}</span>
+                          </div>
+                          <p style={{fontSize:12,color:"#aaa",lineHeight:1.5}}>{d.text}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div style={{display:"flex",gap:6}}>
+                    <textarea value={newComment} onChange={e=>setNewComment(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&e.ctrlKey)addComment(activeReqData.id);}} placeholder="Add comment… (Ctrl+Enter)" rows={2} style={{flex:1,padding:"7px 10px",fontSize:12,resize:"none"}}/>
+                    <button onClick={()=>addComment(activeReqData.id)} style={{padding:"6px 12px",background:"#76B900",border:"none",borderRadius:6,color:"#000",fontWeight:700,fontSize:12,cursor:"pointer",alignSelf:"flex-end"}}>Post</button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* DECISIONS TAB */}
+        {tab==="decisions"&&(
+          <div style={{maxWidth:820}}>
+            <p style={{fontSize:13,color:"#555",marginBottom:20}}>Decisions agreed by the working group. Record new decisions after each session.</p>
+            {decisions.map(d=>(
+              <div key={d.id} style={{background:"#0e0e18",border:"1px solid #1a1a1a",borderRadius:8,padding:"14px 18px",marginBottom:8,display:"flex",gap:14,alignItems:"flex-start"}}>
+                <span style={{width:8,height:8,borderRadius:"50%",background:"#76B900",flexShrink:0,marginTop:5}}/>
+                <div style={{flex:1}}>
+                  <p style={{fontSize:13,color:"#ccc",lineHeight:1.6,marginBottom:5}}>{d.text}</p>
+                  <div style={{display:"flex",gap:10,fontSize:11,color:"#444"}}><span>{d.date}</span><span>·</span><span>{d.by}</span></div>
+                </div>
+                <span style={{background:"#76B90015",border:"1px solid #76B90040",color:"#76B900",borderRadius:4,padding:"2px 8px",fontSize:10,fontWeight:700,flexShrink:0}}>AGREED</span>
+              </div>
+            ))}
+            <div style={{marginTop:20,background:"#0e0e18",border:"1px solid #1a1a2a",borderRadius:8,padding:16}}>
+              <div style={{fontSize:12,fontWeight:700,color:"#76B900",marginBottom:10}}>Record decision as <strong>{currentMember?.name}</strong></div>
+              <textarea value={newDecision} onChange={e=>setNewDecision(e.target.value)} placeholder="Decision text…" rows={2} style={{width:"100%",padding:"8px 10px",fontSize:13,marginBottom:8,resize:"vertical"}}/>
+              <button onClick={addDecision} style={{padding:"7px 20px",background:"#76B900",border:"none",borderRadius:6,color:"#000",fontWeight:700,fontSize:12,cursor:"pointer"}}>Record</button>
+            </div>
+          </div>
+        )}
+
+        {/* DASHBOARD TAB */}
+        {tab==="dashboard"&&(
+          <div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:14,marginBottom:24}}>
+              {DOMAINS.map(domain=>{
+                const stats=getDomainStats(domain.id);
+                const pct=Math.round((stats.converging/stats.total)*100)||0;
+                return(
+                  <div key={domain.id} className="domain-card" onClick={()=>{setTab("requirements");setActiveDomain(domain.id);}} style={{background:"#0e0e18",border:"1px solid #1a1a1a",borderRadius:10,padding:18,cursor:"pointer",transition:"border .15s"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+                      <span style={{fontSize:18}}>{domain.icon}</span>
+                      <span style={{fontSize:13,fontWeight:700,color:"#ccc"}}>{domain.label}</span>
+                    </div>
+                    <div style={{height:3,background:"#1a1a1a",borderRadius:2,marginBottom:10}}>
+                      <div style={{height:3,width:`${pct}%`,background:pct>=70?"#76B900":pct>=40?"#F39C12":"#3498DB",borderRadius:2,transition:"width .5s"}}/>
+                    </div>
+                    <div style={{display:"flex",justifyContent:"space-between",fontSize:12}}>
+                      <span style={{color:"#555"}}>{stats.converging}/{stats.total} converging</span>
+                      {stats.contested>0&&<span style={{color:"#E74C3C"}}>⚠ {stats.contested}</span>}
+                      <span style={{color:pct>=70?"#76B900":pct>=40?"#F39C12":"#3498DB",fontWeight:700}}>{pct}%</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{background:"#0e0e18",border:"1px solid #1a1a1a",borderRadius:10,padding:20,marginBottom:20}}>
+              <h3 style={{fontSize:12,fontWeight:700,color:"#666",textTransform:"uppercase",letterSpacing:1.5,marginBottom:14}}>Member Participation</h3>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(190px,1fr))",gap:10}}>
+                {MEMBERS.map(m=>{
+                  const voted=reqs.filter(r=>r.votes[m.id]).length;
+                  const agreed=reqs.filter(r=>r.votes[m.id]==="agree").length;
+                  const challenged=reqs.filter(r=>r.votes[m.id]==="challenge").length;
+                  const pct=Math.round((voted/reqs.length)*100);
+                  return(
+                    <div key={m.id} style={{padding:"10px 12px",background:"#111",borderRadius:8,border:`1px solid ${m.color}18`}}>
+                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:7}}>
+                        <Avatar member={m.id} size={22}/>
+                        <div>
+                          <div style={{fontSize:12,fontWeight:600,color:"#ccc"}}>{m.name}</div>
+                          <div style={{fontSize:10,color:"#444"}}>{m.role}</div>
+                        </div>
+                      </div>
+                      <div style={{height:2,background:"#1a1a1a",borderRadius:1,marginBottom:5}}>
+                        <div style={{height:2,width:`${pct}%`,background:m.color,borderRadius:1}}/>
+                      </div>
+                      <div style={{display:"flex",gap:8,fontSize:11}}>
+                        <span style={{color:"#444"}}>{voted} voted</span>
+                        <span style={{color:"#76B900"}}>✓{agreed}</span>
+                        {challenged>0&&<span style={{color:"#E74C3C"}}>✕{challenged}</span>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {(()=>{
+              const contested=reqs.filter(r=>Object.values(r.votes).includes("challenge"));
+              if(contested.length===0)return null;
+              return(
+                <div style={{background:"#0e0e18",border:"1px solid #E74C3C30",borderRadius:10,padding:20}}>
+                  <h3 style={{fontSize:12,fontWeight:700,color:"#E74C3C",textTransform:"uppercase",letterSpacing:1.5,marginBottom:12}}>⚠ Contested — Needs Discussion</h3>
+                  {contested.map(r=>(
+                    <div key={r.id} className="contested-row" onClick={()=>{setTab("requirements");setActiveDomain(r.domain);setActiveReq(r.id);}} style={{padding:"10px 14px",background:"#110a0a",borderRadius:6,marginBottom:6,cursor:"pointer",borderLeft:"2px solid #E74C3C",transition:"background .15s"}}>
+                      <span style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#555",marginRight:8}}>{r.id}</span>
+                      <span style={{fontSize:13,color:"#ccc"}}>{r.text}</span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
