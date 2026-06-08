@@ -58,35 +58,76 @@ const DOMAINS = [
 ];
 
 const INITIAL_REQS = [
+  // ── SOURCE CONTROL ───────────────────────────────────────────────────────
   {id:"SC-1",domain:"source",priority:"M",text:"Documentation must live in the same repository as the code it describes",rationale:"Eliminates dual-maintenance; keeps docs versioned with code",votes:{philip:"agree",sally:"agree"},discussions:[],status:"open"},
   {id:"SC-2",domain:"source",priority:"M",text:"Both GitLab and Perforce must be supported as source control systems",rationale:"CI team and legacy systems have code in P4; cannot mandate migration",votes:{philip:"agree",jason:"agree",sally:"agree"},discussions:[{author:"jason",text:"P4 has 20yr-old codebases still in active development — this is non-negotiable for CI team",ts:"Jun 5"}],status:"open"},
   {id:"SC-3",domain:"source",priority:"M",text:"Documentation source must live under a docs/ folder at repo root",rationale:"Standard convention; all existing implementations already follow this",votes:{philip:"agree"},discussions:[],status:"open"},
   {id:"SC-4",domain:"source",priority:"S",text:"A CODEOWNERS or equivalent ownership file must exist for each doc set",rationale:"Enables automated freshness alerts and review routing",votes:{},discussions:[],status:"open"},
+  {id:"SC-5",domain:"source",priority:"S",text:"Multi-service monorepos must have a dedicated docs/ subtree per service (e.g. services/foo/docs/), not a single shared docs/ folder",rationale:"Shared docs folders conflate ownership and make per-service CI gating impossible",votes:{},discussions:[],status:"open"},
+  {id:"SC-6",domain:"source",priority:"M",text:"Every participating repo must have a README.md at root that links to its docs/ entry point",rationale:"Standard developer entry point; prevents docs from being undiscoverable",votes:{},discussions:[],status:"open"},
+  {id:"SC-7",domain:"source",priority:"M",text:"gitlab-master.nvidia.com is the standard GitLab instance for HWInf Docs-as-Code; other instances require explicit working group sign-off",rationale:"Fragmented GitLab instances break shared CI templates and access control policies",votes:{},discussions:[],status:"open"},
+  {id:"SC-8",domain:"source",priority:"S",text:"A standard MR description template must be defined for doc-only changes, covering: what changed, why, Confluence pages affected",rationale:"Reduces reviewer friction and enables automated changelog generation from MR descriptions",votes:{},discussions:[],status:"open"},
+  {id:"SC-9",domain:"source",priority:"M",text:"The default branch must be named main across all participating repos",rationale:"Org consistency; required for shared CI include templates to reference a predictable branch",votes:{},discussions:[],status:"open"},
+  {id:"SC-10",domain:"source",priority:"M",text:"Branch protection must be enabled on main: MR required, at least 1 approval, CI must pass before merge",rationale:"Prevents direct pushes that bypass lint and publish pipeline; protects Confluence content from bad publishes",votes:{},discussions:[],status:"open"},
+  {id:"SC-11",domain:"source",priority:"S",text:"Doc-only MRs may be approved by any working group member, not exclusively the code owner of the modified service",rationale:"Requiring code-owner approval for doc changes creates bottlenecks; docs should have a broader reviewer pool",votes:{},discussions:[],status:"open"},
+  {id:"SC-12",domain:"source",priority:"S",text:"Squash-merge must be the standard merge strategy for doc MRs to keep main history clean",rationale:"Feature-branch doc work produces noisy intermediate commits; squash produces a single attributable commit per doc change",votes:{},discussions:[],status:"open"},
+  {id:"SC-13",domain:"source",priority:"S",text:"Conventional commit prefixes (docs:, fix:, chore:) must be used for all doc commits to enable automated changelog generation",rationale:"Structured commit messages feed release note automation and doc debt dashboards",votes:{},discussions:[],status:"open"},
+  {id:"SC-14",domain:"source",priority:"M",text:"CODEOWNERS entries must point to a team/group alias, not a named individual, to survive personnel changes",rationale:"Individual CODEOWNERS entries become orphaned when team members leave or move — group aliases are resilient",votes:{},discussions:[],status:"open"},
+  {id:"SC-15",domain:"source",priority:"M",text:"A staleness threshold must be agreed org-wide: doc files not updated within the threshold trigger an automated alert to the CODEOWNERS",rationale:"Without automated freshness enforcement, stale docs accumulate silently; proposal: 6 months for runbooks, 1 year for reference docs",votes:{},discussions:[],status:"open"},
+  {id:"SC-16",domain:"source",priority:"S",text:"An archival policy must be defined for deprecated service docs: archive (read-only) with a deprecation banner, not delete",rationale:"Deleted docs lose institutional history; archiving preserves context while signalling content is no longer maintained",votes:{},discussions:[],status:"open"},
+  {id:"SC-17",domain:"source",priority:"S",text:"A doc-debt label or Jira component must be established for tracking known doc gaps, stale pages, and orphaned content",rationale:"Without a formal tracking mechanism, doc debt is invisible and deprioritised across teams",votes:{},discussions:[],status:"open"},
+  {id:"SC-18",domain:"source",priority:"S",text:"Orphaned doc detection (docs referencing deprecated code paths or services) must be part of the scheduled CI quality job",rationale:"As services evolve, runbooks and API references drift from reality; automated detection surfaces these before they cause operational incidents",votes:{},discussions:[],status:"open"},
+
+  // ── AUTHORING FORMAT ─────────────────────────────────────────────────────
   {id:"AF-1",domain:"authoring",priority:"M",text:"Markdown (CommonMark) is the standard authoring format for HWInf Docs-as-Code",rationale:"Used by 6 of 7 existing implementations; widely supported; developer-friendly",votes:{philip:"agree",bryan:"agree",george:"agree",matt:"agree"},discussions:[{author:"ryan_r",text:"NVDocs uses RST — we need to explicitly document this as a supported exception, not a violation",ts:"Jun 5"}],status:"open"},
   {id:"AF-2",domain:"authoring",priority:"S",text:"RST-based workflows (NVDocs) are a supported exception where team requirements justify it",rationale:"NVDocs is production at DCSS; migration not viable short-term",votes:{ryan_r:"agree",philip:"agree"},discussions:[{author:"ryan_r",text:"I'd push for this to be M, not S — we shouldn't treat a production system as a second-class citizen",ts:"Jun 5"}],status:"open"},
   {id:"AF-3",domain:"authoring",priority:"S",text:"Diagrams must be expressed as code (Mermaid, WaveDrom, WireViz) where practical",rationale:"Enables version control, CI validation, and AI readability of diagrams",votes:{matt:"agree",philip:"agree"},discussions:[{author:"matt",text:"Talos Croqui/Neolesk already handles WaveDrom/WireViz SVG generation — worth evaluating as shared org service",ts:"Jun 5"}],status:"open"},
   {id:"AF-4",domain:"authoring",priority:"M",text:"Binary diagram files (Visio, PNG) permitted where diagrams-as-code is not feasible",rationale:"Hardware schematics cannot always be converted to text-based formats",votes:{ryan_r:"agree",jason:"agree"},discussions:[{author:"ryan_r",text:"AI-generated Visio-style diagrams from hardware schematics is a major gap — worth tracking separately",ts:"Jun 5"}],status:"open"},
+
+  // ── PUBLISHING ───────────────────────────────────────────────────────────
   {id:"PT-1",domain:"publishing",priority:"M",text:"All documentation must be published to Confluence (nvidia.atlassian.net)",rationale:"Non-negotiable per HWInf leadership; required for Glean/NVSearch indexing",votes:{philip:"agree",sally:"agree",george:"agree",joshua:"agree"},discussions:[{author:"sally",text:"This comes from Sharon — it's a hard requirement. Glean can't index what's not in Confluence.",ts:"Jun 5"},{author:"joshua",text:"We currently publish to K8s portal — we can add Confluence as a required additional target",ts:"Jun 5"}],status:"open"},
   {id:"PT-2",domain:"publishing",priority:"M",text:"Additional publish targets (static site, PDF, external) are permitted alongside Confluence",rationale:"NVDocs needs PDF; App Standards uses static site; DCS needs external publish capability",votes:{ryan_r:"agree",bryan:"agree",philip:"agree"},discussions:[],status:"open"},
   {id:"PT-3",domain:"publishing",priority:"M",text:"Auto-generated Confluence pages must be marked and protected from manual overwrites",rationale:"Prevents content loss when pipeline re-publishes to the same page",votes:{philip:"agree"},discussions:[],status:"open"},
   {id:"PT-4",domain:"publishing",priority:"S",text:"MR preview: publish to Confluence staging page on MR open, promote on merge",rationale:"GitLab FAQ and NVDocs both implement this — reduces publish errors significantly",votes:{george:"agree",ryan_r:"agree"},discussions:[{author:"philip",text:"My PoC currently lacks this — high priority for me to add once standard is agreed",ts:"Jun 5"}],status:"open"},
   {id:"PT-5",domain:"publishing",priority:"C",text:"Atlassian native Markdown-to-Confluence (~Sep 2026) to be evaluated as tooling replacement",rationale:"Could eliminate mark CLI dependency and simplify pipeline complexity org-wide",votes:{philip:"agree",sally:"agree"},discussions:[{author:"sally",text:"We have contacts on Atlassian product team — they demoed round-trip Markdown/Confluence editing",ts:"Jun 2"},{author:"ryan_r",text:"Would have helped us a lot — we had to build our own Confluence publish tooling",ts:"Jun 5"}],status:"open"},
+
+  // ── CI/CD QUALITY ────────────────────────────────────────────────────────
   {id:"CI-1",domain:"cicd",priority:"M",text:"A shared GitLab CI include template for docs lint + publish must be provided",rationale:"Reduces per-team setup cost; Test Auto Pipeline already has templates/source-repo-ci.yml",votes:{joshua:"agree",philip:"agree"},discussions:[],status:"open"},
   {id:"CI-2",domain:"cicd",priority:"M",text:"Markdown lint (markdownlint) must run on every MR touching docs/**",rationale:"Catches structural issues early; all teams align on shared .markdownlint.json config",votes:{philip:"agree",bryan:"agree"},discussions:[],status:"open"},
   {id:"CI-3",domain:"cicd",priority:"S",text:"Vale + NVIDIA prose rules must run as part of the standard CI pipeline",rationale:"Only Philip's PoC has this today — brings style/tone consistency org-wide",votes:{philip:"agree"},discussions:[{author:"matt",text:"Where would the shared NVIDIA Vale rules live? Needs a home everyone can pull from",ts:"Jun 5"}],status:"open"},
   {id:"CI-4",domain:"cicd",priority:"M",text:"Link validation must run on every MR touching docs/**",rationale:"Broken links erode doc trust; Test Auto Pipeline already has validate_links.py",votes:{joshua:"agree",philip:"agree"},discussions:[],status:"open"},
   {id:"CI-5",domain:"cicd",priority:"S",text:"A make docs or equivalent standard hook must be defined for all participating repos",rationale:"CI DaaS proposes this as the standard entry point — consistent across all pipelines",votes:{jason:"agree"},discussions:[],status:"open"},
-  {id:"CI-6",domain:"cicd",priority:"S",text:"Phased release gate: soft gate (non-blocking) → hard gate (blocks release) on docs failures",rationale:"CI DaaS model — allows teams to ramp without disrupting existing release pipelines",votes:{jason:"agree",ryan_r:"agree"},discussions:[{author:"ryan_r",text:"Strongly recommend distributed services architecture — don't build monolithic tooling around Confluence",ts:"Jun 5"},{author:"jason",text:"Hard gate (no docs = no release) should be the long-term target but we phase into it",ts:"Jun 5"}],status:"open"},
+  {id:"CI-6",domain:"cicd",priority:"S",text:"Phased release gate: soft gate (non-blocking) to hard gate (blocks release) on docs failures",rationale:"CI DaaS model — allows teams to ramp without disrupting existing release pipelines",votes:{jason:"agree",ryan_r:"agree"},discussions:[{author:"ryan_r",text:"Strongly recommend distributed services architecture — don't build monolithic tooling around Confluence",ts:"Jun 5"},{author:"jason",text:"Hard gate (no docs = no release) should be the long-term target but we phase into it",ts:"Jun 5"}],status:"open"},
+  {id:"CI-7",domain:"cicd",priority:"M",text:"Shared CI include templates must be versioned and pinned (e.g. @v1.2) — floating refs to main are prohibited",rationale:"Unpinned includes mean a template update can silently break every downstream repo simultaneously",votes:{},discussions:[],status:"open"},
+  {id:"CI-8",domain:"cicd",priority:"S",text:"Lint and link-check jobs must run only on changed files under docs/** to keep MR pipelines fast",rationale:"Running full-corpus lint on every MR is slow and discourages adoption; scoped jobs run in seconds",votes:{},discussions:[],status:"open"},
+  {id:"CI-9",domain:"cicd",priority:"M",text:"A Perforce-compatible pipeline template (or trigger bridge) for docs lint + publish must be owned by a named team",rationale:"P4 pipelines cannot use GitLab include templates directly; Jason flagged this as an open ownership gap at kick-off",votes:{},discussions:[],status:"open"},
+  {id:"CI-10",domain:"cicd",priority:"S",text:"All pipeline secrets (Confluence tokens, Slack webhooks) must be stored in a standard secrets manager — no hardcoded values in CI YAML",rationale:"Hardcoded tokens are a security risk and create per-repo maintenance burden when credentials rotate",votes:{},discussions:[],status:"open"},
+  {id:"CI-11",domain:"cicd",priority:"S",text:"A token rotation policy must be defined for all CI service accounts used by the docs pipeline",rationale:"Long-lived unrotated tokens are a persistent security vulnerability; rotation cadence TBD (proposal: 90 days)",votes:{},discussions:[],status:"open"},
+
+  // ── TAXONOMY & CONTRACT ──────────────────────────────────────────────────
   {id:"TX-1",domain:"taxonomy",priority:"M",text:"A minimum documentation contract must be defined per service or platform",rationale:"Ensures every service has: README, user guide, runbook, API/CLI ref, architecture overview",votes:{philip:"agree",joshua:"agree"},discussions:[{author:"joshua",text:"Custom Docs Spec already defines this well — propose we adopt it as the org baseline rather than starting from scratch",ts:"Jun 5"}],status:"open"},
   {id:"TX-2",domain:"taxonomy",priority:"S",text:"Standard folder taxonomy: getting-started/, how-to/, concepts/, reference/, troubleshooting/, runbooks/",rationale:"Custom Docs Spec prescribes this; 5 of 7 current implementations have no taxonomy today",votes:{joshua:"agree",philip:"agree"},discussions:[],status:"open"},
   {id:"TX-3",domain:"taxonomy",priority:"M",text:"Confluence page trees and labels must be standardized across all teams",rationale:"Inconsistent page trees hurt Glean indexing and reader experience",votes:{philip:"agree",sally:"agree"},discussions:[],status:"open"},
   {id:"TX-4",domain:"taxonomy",priority:"M",text:"Docs must use stable machine-readable headings and consistent metadata for AI consumption",rationale:"Required for AI agents, chatbots, and search assistants to consume docs reliably",votes:{angela:"agree",matt:"agree"},discussions:[{author:"angela",text:"Agentic Doc Refresh depends on stable structure — critical for the auto-refresh pipeline to work",ts:"Jun 3"}],status:"open"},
+  {id:"TX-5",domain:"taxonomy",priority:"M",text:"All doc files must include a YAML front matter block with at minimum: title, owner, last-reviewed date, and doc-type",rationale:"Front matter is the machine-readable contract that enables freshness tracking, ownership routing, and AI metadata extraction",votes:{},discussions:[],status:"open"},
+  {id:"TX-6",domain:"taxonomy",priority:"S",text:"A standard Confluence label taxonomy must be agreed and enforced via CI: labels drive Glean faceting and NVSearch filters",rationale:"Without consistent labels, Glean search returns undifferentiated results; taxonomy makes labels actionable consistently across teams",votes:{},discussions:[],status:"open"},
+  {id:"TX-7",domain:"taxonomy",priority:"S",text:"Auto-generated Confluence pages must follow a standard URL/page-ID pattern to prevent pipeline collisions and enable stable deep links",rationale:"Multiple teams publishing to Confluence with ad-hoc page structures creates orphaned pages and broken links over time",votes:{},discussions:[],status:"open"},
+
+  // ── VERSIONING ───────────────────────────────────────────────────────────
   {id:"VS-1",domain:"versioning",priority:"S",text:"Documentation versioning must be coupled to code release tags where applicable",rationale:"Test Auto Pipeline and NVDocs both do this — ensures docs stay aligned with releases",votes:{joshua:"agree",ryan_r:"agree"},discussions:[],status:"open"},
   {id:"VS-2",domain:"versioning",priority:"S",text:"A latest symlink or equivalent must always resolve to the most current stable version",rationale:"CI DaaS and Test Auto Pipeline both implement this pattern",votes:{joshua:"agree"},discussions:[],status:"open"},
   {id:"VS-3",domain:"versioning",priority:"M",text:"Single-page and FAQ-style docs without versioning are acceptable for appropriate content types",rationale:"Not all docs need versioning — GitLab FAQ pattern is valid for certain doc types",votes:{george:"agree",philip:"agree"},discussions:[],status:"open"},
+  {id:"VS-4",domain:"versioning",priority:"S",text:"A backport process must be defined for critical doc fixes that need to apply to multiple active release versions",rationale:"Without a backport process, urgent corrections (security notes, breaking-change warnings) only land in latest",votes:{},discussions:[],status:"open"},
+  {id:"VS-5",domain:"versioning",priority:"S",text:"A doc retention policy must be defined: how many old versions are kept live, and when are they archived or deleted",rationale:"Unbounded version retention inflates Confluence space and degrades search quality with outdated results",votes:{},discussions:[],status:"open"},
+  {id:"VS-6",domain:"versioning",priority:"S",text:"An exemption list for living docs (process docs, team norms, onboarding guides) that are unversioned by design must be formally documented",rationale:"Forcing version coupling on content that is intentionally evergreen creates false release coupling and unnecessary overhead",votes:{},discussions:[],status:"open"},
+  {id:"VS-7",domain:"versioning",priority:"M",text:"Where version tags are used, they must follow semver alignment with the code release (vMAJOR.MINOR.PATCH) — custom doc-only version schemes are prohibited",rationale:"Custom version schemes (e.g. docs/2024-Q3) decouple docs from code and break tooling that reads release tags",votes:{},discussions:[],status:"open"},
+
+  // ── AI READINESS ─────────────────────────────────────────────────────────
   {id:"AI-1",domain:"ai",priority:"M",text:"Documentation structure must enable AI agents to consume and reuse it reliably",rationale:"Structured, labeled content feeds authoring agents and chatbots; unstable headings break AI tooling",votes:{angela:"agree",matt:"agree",philip:"agree"},discussions:[{author:"matt",text:"Proposal: AI agent skill that inspects a team's environment and recommends the right Docs-as-Code setup",ts:"Jun 5"}],status:"open"},
   {id:"AI-2",domain:"ai",priority:"S",text:"Auto-generated docs (API refs, CLI help, config schemas) must be included where feasible",rationale:"CI DaaS and NVDocs both do this; reduces manual authoring burden significantly",votes:{ryan_r:"agree",jason:"agree"},discussions:[],status:"open"},
   {id:"AI-3",domain:"ai",priority:"S",text:"Agentic doc refresh workflows must be compatible with the standard CI pipeline",rationale:"Angela's Auto Doc Refresh project needs to hook into whatever CI pipeline is defined",votes:{angela:"agree"},discussions:[{author:"angela",text:"Once we have a standard pipeline agreed, this becomes immediately actionable",ts:"Jun 3"}],status:"open"},
+  {id:"AI-4",domain:"ai",priority:"S",text:"Source docs must avoid deeply nested heading structures (max H3 within a section) to ensure AI agents can parse and chunk content reliably",rationale:"LLMs and RAG pipelines perform poorly on deeply nested or inconsistently structured Markdown; flat, predictable headings improve retrieval quality",votes:{},discussions:[],status:"open"},
+  {id:"AI-5",domain:"ai",priority:"S",text:"Code examples in docs must be fenced with language identifiers (e.g. \`\`\`python, \`\`\`bash) for AI-assisted code extraction and syntax validation",rationale:"Language-tagged fences enable tooling to extract, validate, and reuse code examples; untagged blocks are opaque to agents",votes:{},discussions:[],status:"open"},
 ];
 
 const INITIAL_DECISIONS = [
@@ -122,7 +163,6 @@ function App(){
   useEffect(()=>{try{localStorage.setItem("dac-wg-reqs",JSON.stringify({reqs,decisions}));}catch(e){}},[reqs,decisions]);
 
   const castVote=(reqId,vote)=>{
-    setReqs(prev=>prev.map(r=>r.id===reqId?{...r,votes:{...r.votes,[activeMember]:r.votes[activeMember]===vote?undefined:{...r.votes,[activeMember]:vote}[activeMember]}}:r));
     setReqs(prev=>prev.map(r=>r.id===reqId?{...r,votes:{...r.votes,[activeMember]:vote}}:r));
   };
 
@@ -177,7 +217,6 @@ function App(){
 
   return (
     <div style={{fontFamily:"'DM Sans','Segoe UI',sans-serif",background:"#0a0a0f",minHeight:"100vh",color:"#e0e0e0"}}>
-      {/* Header */}
       <div style={{background:"#0d0d1a",borderBottom:"1px solid #1a1a2e",padding:"0 28px",position:"sticky",top:0,zIndex:100}}>
         <div style={{maxWidth:1400,margin:"0 auto"}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",paddingTop:16,paddingBottom:10}}>
@@ -213,11 +252,9 @@ function App(){
 
       <div style={{maxWidth:1400,margin:"0 auto",padding:"24px 28px"}}>
 
-        {/* REQUIREMENTS TAB */}
         {tab==="requirements" && (
           <div style={{display:"grid",gridTemplateColumns:activeReq?"1fr 440px":"1fr",gap:20,alignItems:"start"}}>
             <div>
-              {/* Domain filter */}
               <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:16,flexWrap:"wrap"}}>
                 {[{id:"all",label:"All",icon:"◈"},...DOMAINS].map(d=>{
                   const isAll=d.id==="all";
@@ -288,7 +325,7 @@ function App(){
                                 {voteCount>5&&<span style={{width:18,height:18,borderRadius:"50%",background:"#333",display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:8,color:"#888"}}>+{voteCount-5}</span>}
                               </div>
                               <span style={{fontSize:11,color:conv.color,fontWeight:600,fontFamily:"'DM Mono',monospace",minWidth:80,textAlign:"right"}}>{conv.label}</span>
-                              {req.discussions.length>0&&<span style={{fontSize:11,color:"#444"}}>💬{req.discussions.length}</span>}
+                              {req.discussions.length>0&&<span style={{fontSize:11,color:"#555"}}>({req.discussions.length})</span>}
                             </div>
                           </div>
                         </div>
@@ -299,7 +336,6 @@ function App(){
               })}
             </div>
 
-            {/* Detail panel */}
             {activeReqData&&(
               <div style={{background:"#0e0e18",border:"1px solid #1e1e30",borderRadius:12,padding:20,position:"sticky",top:80}}>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
@@ -309,10 +345,8 @@ function App(){
                   </div>
                   <button onClick={()=>setActiveReq(null)} style={{background:"none",border:"none",color:"#555",cursor:"pointer",fontSize:18,lineHeight:1,padding:"0 4px"}}>×</button>
                 </div>
-
                 <p style={{fontSize:14,color:"#e0e0e0",lineHeight:1.6,marginBottom:10,fontWeight:500}}>{activeReqData.text}</p>
                 {activeReqData.rationale&&<p style={{fontSize:12,color:"#555",lineHeight:1.5,marginBottom:14,fontStyle:"italic",borderLeft:"2px solid #222",paddingLeft:10}}>{activeReqData.rationale}</p>}
-
                 {(()=>{const c=getConvergence(activeReqData);return(
                   <div style={{marginBottom:14}}>
                     <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:4}}>
@@ -324,7 +358,6 @@ function App(){
                     </div>
                   </div>
                 );})()}
-
                 <div style={{marginBottom:14}}>
                   <div style={{fontSize:11,color:"#555",marginBottom:8}}>Cast your vote as <strong style={{color:currentMember?.color}}>{currentMember?.name}</strong></div>
                   <div style={{display:"flex",gap:6}}>
@@ -335,7 +368,6 @@ function App(){
                     ))}
                   </div>
                 </div>
-
                 <div style={{marginBottom:14}}>
                   <div style={{fontSize:11,color:"#555",marginBottom:8,textTransform:"uppercase",letterSpacing:1}}>All votes</div>
                   <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
@@ -350,7 +382,6 @@ function App(){
                     })}
                   </div>
                 </div>
-
                 <div>
                   <div style={{fontSize:11,color:"#555",marginBottom:8,textTransform:"uppercase",letterSpacing:1}}>Discussion</div>
                   <div style={{maxHeight:240,overflowY:"auto",marginBottom:8}}>
@@ -378,7 +409,6 @@ function App(){
           </div>
         )}
 
-        {/* DECISIONS TAB */}
         {tab==="decisions"&&(
           <div style={{maxWidth:820}}>
             <p style={{fontSize:13,color:"#555",marginBottom:20}}>Decisions agreed by the working group. Record new decisions after each session.</p>
@@ -400,7 +430,6 @@ function App(){
           </div>
         )}
 
-        {/* DASHBOARD TAB */}
         {tab==="dashboard"&&(
           <div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:14,marginBottom:24}}>
