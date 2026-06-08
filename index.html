@@ -104,6 +104,20 @@ const INITIAL_REQS = [
   {id:"CI-10",domain:"cicd",priority:"S",text:"All pipeline secrets (Confluence tokens, Slack webhooks) must be stored in a standard secrets manager — no hardcoded values in CI YAML",rationale:"Hardcoded tokens are a security risk and create per-repo maintenance burden when credentials rotate",votes:{},discussions:[],status:"open"},
   {id:"CI-11",domain:"cicd",priority:"S",text:"A token rotation policy must be defined for all CI service accounts used by the docs pipeline",rationale:"Long-lived unrotated tokens are a persistent security vulnerability; rotation cadence TBD (proposal: 90 days)",votes:{},discussions:[],status:"open"},
 
+  // ── TOKEN MANAGEMENT ─────────────────────────────────────────────────────
+  {id:"CI-12",domain:"cicd",priority:"M",text:"All CI service account tokens used for Confluence publishing must be stored in a vault-compatible secrets manager — never in .gitlab-ci.yml or repo files",rationale:"Hardcoded tokens in CI YAML are the #1 cause of credential leaks in pipeline-heavy orgs; any committed token must be treated as compromised",votes:{},discussions:[],status:"open"},
+  {id:"CI-13",domain:"cicd",priority:"M",text:"A single shared Confluence publish token per working group must be provisioned — teams must not create individual service accounts for doc publishing",rationale:"Proliferating service accounts makes rotation, auditing, and revocation unmanageable at org scale",votes:{},discussions:[],status:"open"},
+  {id:"CI-14",domain:"cicd",priority:"S",text:"Confluence API tokens must be rotated on a defined cadence (proposal: 90 days) with automated reminders to the token owner 14 days before expiry",rationale:"Unrotated tokens are a persistent vulnerability; reminder automation prevents surprise pipeline failures on rotation day",votes:{},discussions:[],status:"open"},
+  {id:"CI-15",domain:"cicd",priority:"S",text:"Token scope must be least-privilege: Confluence publish tokens must have write access only to the designated DaaS space, not org-wide",rationale:"Over-permissioned tokens turn a compromised credential into an org-wide content risk",votes:{},discussions:[],status:"open"},
+  {id:"CI-16",domain:"cicd",priority:"S",text:"A token ownership registry must be maintained covering: owner, expiry date, scope, and associated pipelines — stored in a designated Confluence page or internal tool",rationale:"Without a registry, token sprawl is invisible; no one knows what is expiring or who owns what until a pipeline fails",votes:{},discussions:[],status:"open"},
+  {id:"CI-17",domain:"cicd",priority:"C",text:"Pipeline failures caused by expired or revoked tokens must surface a human-readable error identifying the token name and owner, not a raw 401",rationale:"Raw auth failures waste hours of debugging; named error messages route the issue to the right person immediately",votes:{},discussions:[],status:"open"},
+
+  // ── AUTHORSHIP ATTRIBUTION ───────────────────────────────────────────────
+  {id:"CI-18",domain:"cicd",priority:"M",text:"Published Confluence pages must display the human git author, not the CI service account, as the page creator and last editor",rationale:"Service account authorship breaks ownership routing, Glean search attribution, staleness tracking, and audit trails — the bot name tells readers nothing",votes:{},discussions:[],status:"open"},
+  {id:"CI-19",domain:"cicd",priority:"M",text:"The pipeline must explicitly write the git committer name and email into a Confluence page property or byline on every publish",rationale:"Confluence will not resolve this automatically — human authorship must be injected by the pipeline at publish time; this must be part of the shared CI template",votes:{},discussions:[],status:"open"},
+  {id:"CI-20",domain:"cicd",priority:"S",text:"Last-modified attribution on Confluence pages must reflect the human who made the last git commit, not the publish bot timestamp",rationale:"Staleness alerts and freshness tracking depend on accurate human-authored timestamps; bot timestamps make every page appear perpetually fresh",votes:{},discussions:[],status:"open"},
+  {id:"CI-21",domain:"cicd",priority:"S",text:"The CODEOWNERS entry and the Confluence page author field must resolve to the same person or team alias — divergence must trigger a CI warning",rationale:"Divergent ownership between git and Confluence is a silent governance failure that breaks escalation paths and ownership audits",votes:{},discussions:[],status:"open"},
+
   // ── TAXONOMY & CONTRACT ──────────────────────────────────────────────────
   {id:"TX-1",domain:"taxonomy",priority:"M",text:"A minimum documentation contract must be defined per service or platform",rationale:"Ensures every service has: README, user guide, runbook, API/CLI ref, architecture overview",votes:{philip:"agree",joshua:"agree"},discussions:[{author:"joshua",text:"Custom Docs Spec already defines this well — propose we adopt it as the org baseline rather than starting from scratch",ts:"Jun 5"}],status:"open"},
   {id:"TX-2",domain:"taxonomy",priority:"S",text:"Standard folder taxonomy: getting-started/, how-to/, concepts/, reference/, troubleshooting/, runbooks/",rationale:"Custom Docs Spec prescribes this; 5 of 7 current implementations have no taxonomy today",votes:{joshua:"agree",philip:"agree"},discussions:[],status:"open"},
@@ -135,6 +149,12 @@ const INITIAL_DECISIONS = [
   {id:2,date:"Jun 5, 2026",text:"Both GitLab and Perforce will be supported — docs live where code lives",by:"All attendees — Kick-off",status:"agreed"},
   {id:3,date:"Jun 5, 2026",text:"Working group uses this live doc as async scratchpad + weekly meetings",by:"Jason Anderson, Philip Umeh",status:"agreed"},
   {id:4,date:"Jun 5, 2026",text:"Target: requirements agreed by Jul 31 · framework rolled out by end of Q3 FY27",by:"Sally Osborne",status:"agreed"},
+  {id:5,date:"Jun 8, 2026",text:"Designated secrets manager for HWInf DaaS pipelines must be agreed — candidates: HashiCorp Vault, NVIDIA internal secrets service, GitLab CI variables",by:"Working Group — open",status:"open"},
+  {id:6,date:"Jun 8, 2026",text:"Ownership of the shared Confluence publish service account must be assigned to a named team (SCM, NVDocs, or working group role)",by:"Working Group — open",status:"open"},
+  {id:7,date:"Jun 8, 2026",text:"Token rotation cadence agreed at 90 days — different cadence for dev vs prod environments to be confirmed",by:"Working Group — open",status:"open"},
+  {id:8,date:"Jun 8, 2026",text:"Token expiry notification target must be agreed — working group channel, token owner only, or both",by:"Working Group — open",status:"open"},
+  {id:9,date:"Jun 8, 2026",text:"Mechanism for injecting human authorship into Confluence at publish time must be agreed — page properties, byline macro, or custom metadata field",by:"Working Group — open",status:"open"},
+  {id:10,date:"Jun 8, 2026",text:"Source of truth for authorship attribution must be agreed — git commit author, MR approver, or CODEOWNERS entry",by:"Working Group — open",status:"open"},
 ];
 
 const PRIORITY_COLORS = {M:"#E74C3C",S:"#F39C12",C:"#3498DB",W:"#95A5A6"};
@@ -428,7 +448,7 @@ function App(){
                   <p style={{fontSize:13,color:"#ccc",lineHeight:1.6,marginBottom:5}}>{d.text}</p>
                   <div style={{display:"flex",gap:10,fontSize:11,color:"#444"}}><span>{d.date}</span><span>·</span><span>{d.by}</span></div>
                 </div>
-                <span style={{background:"#76B90015",border:"1px solid #76B90040",color:"#76B900",borderRadius:4,padding:"2px 8px",fontSize:10,fontWeight:700,flexShrink:0}}>AGREED</span>
+                <span style={{background:d.status==="agreed"?"#76B90015":"#F39C1215",border:`1px solid ${d.status==="agreed"?"#76B90040":"#F39C1240"}`,color:d.status==="agreed"?"#76B900":"#F39C12",borderRadius:4,padding:"2px 8px",fontSize:10,fontWeight:700,flexShrink:0}}>{d.status==="agreed"?"AGREED":"OPEN"}</span>
               </div>
             ))}
             <div style={{marginTop:20,background:"#0e0e18",border:"1px solid #1a1a2a",borderRadius:8,padding:16}}>
