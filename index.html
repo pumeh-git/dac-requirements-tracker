@@ -270,6 +270,15 @@ function App(){
                 })}
                 <button onClick={()=>setShowAddReq(!showAddReq)} style={{marginLeft:"auto",padding:"5px 14px",borderRadius:6,border:"1px solid #76B90050",background:"#76B90015",color:"#76B900",fontSize:12,cursor:"pointer",fontWeight:600}}>+ Add</button>
               </div>
+              <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:14,paddingLeft:2}}>
+                <span style={{fontSize:10,color:"#444",textTransform:"uppercase",letterSpacing:1,fontFamily:"'DM Mono',monospace"}}>Priority:</span>
+                {[["M","Must","#E74C3C"],["S","Should","#F39C12"],["C","Could","#3498DB"],["W","Won't","#95A5A6"]].map(([ltr,label,col])=>(
+                  <span key={ltr} style={{display:"inline-flex",alignItems:"center",gap:5,fontSize:11,color:"#555"}}>
+                    <span style={{background:col+"22",color:col,border:`1px solid ${col}40`,borderRadius:4,padding:"1px 6px",fontSize:10,fontWeight:700,fontFamily:"'DM Mono',monospace"}}>{ltr}</span>
+                    <span>{label}</span>
+                  </span>
+                ))}
+              </div>
 
               {showAddReq&&(
                 <div style={{background:"#111",border:"1px solid #76B90030",borderRadius:10,padding:16,marginBottom:16}}>
@@ -314,7 +323,7 @@ function App(){
                         <div key={req.id} className="req-row" onClick={()=>setActiveReq(isActive?null:req.id)} style={{background:isActive?"#141420":"#0e0e18",border:`1px solid ${isActive?"#76B90040":"#1a1a1a"}`,borderRadius:8,padding:"11px 14px",marginBottom:5,cursor:"pointer",transition:"all .15s"}}>
                           <div style={{display:"flex",alignItems:"flex-start",gap:10}}>
                             <span style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"#444",paddingTop:2,flexShrink:0,minWidth:34}}>{req.id}</span>
-                            <span style={{background:PRIORITY_COLORS[req.priority]+"22",color:PRIORITY_COLORS[req.priority],border:`1px solid ${PRIORITY_COLORS[req.priority]}40`,borderRadius:4,padding:"1px 6px",fontSize:10,fontWeight:700,fontFamily:"'DM Mono',monospace",flexShrink:0}}>{req.priority}</span>
+                            <span title={`${PRIORITY_LABELS[req.priority]} — ${req.priority === "M" ? "Non-negotiable" : req.priority === "S" ? "Strongly recommended" : req.priority === "C" ? "Nice to have" : "Out of scope"}`} style={{background:PRIORITY_COLORS[req.priority]+"22",color:PRIORITY_COLORS[req.priority],border:`1px solid ${PRIORITY_COLORS[req.priority]}40`,borderRadius:4,padding:"1px 6px",fontSize:10,fontWeight:700,fontFamily:"'DM Mono',monospace",flexShrink:0,cursor:"help"}}>{req.priority}</span>
                             <span style={{flex:1,fontSize:13,color:"#ccc",lineHeight:1.5}}>{req.text}</span>
                             <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
                               <div style={{display:"flex",gap:2}}>
@@ -341,7 +350,7 @@ function App(){
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
                   <div style={{display:"flex",alignItems:"center",gap:8}}>
                     <span style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:"#555"}}>{activeReqData.id}</span>
-                    <span style={{background:PRIORITY_COLORS[activeReqData.priority]+"22",color:PRIORITY_COLORS[activeReqData.priority],border:`1px solid ${PRIORITY_COLORS[activeReqData.priority]}40`,borderRadius:4,padding:"2px 8px",fontSize:11,fontWeight:700}}>{PRIORITY_LABELS[activeReqData.priority]}</span>
+                    <span title={`${PRIORITY_LABELS[activeReqData.priority]} — ${activeReqData.priority === "M" ? "Non-negotiable" : activeReqData.priority === "S" ? "Strongly recommended" : activeReqData.priority === "C" ? "Nice to have" : "Out of scope"}`} style={{background:PRIORITY_COLORS[activeReqData.priority]+"22",color:PRIORITY_COLORS[activeReqData.priority],border:`1px solid ${PRIORITY_COLORS[activeReqData.priority]}40`,borderRadius:4,padding:"2px 8px",fontSize:11,fontWeight:700,cursor:"help"}}>{PRIORITY_LABELS[activeReqData.priority]}</span>
                   </div>
                   <button onClick={()=>setActiveReq(null)} style={{background:"none",border:"none",color:"#555",cursor:"pointer",fontSize:18,lineHeight:1,padding:"0 4px"}}>×</button>
                 </div>
