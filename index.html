@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -34,7 +34,7 @@
 <script type="text/babel">
 const { useState, useEffect, useRef } = React;
 
-const DATA_VERSION = "v10"; // bump this to force a localStorage reset
+const DATA_VERSION = "v11"; // bump this to force a localStorage reset
 const STORAGE_KEY = "dac-wg-reqs";
 
 const MEMBERS = [
@@ -61,6 +61,7 @@ const DOMAINS = [
   { id:"versioning", label:"Versioning",            icon:"◷" },
   { id:"ai",         label:"AI Readiness",          icon:"◉" },
   { id:"clm",        label:"Content Lifecycle",      icon:"↻" },
+  { id:"metrics",    label:"Metrics & Reporting",    icon:"▦" },
 ];
 
 const INITIAL_REQS = [
@@ -83,6 +84,7 @@ const INITIAL_REQS = [
   {id:"SC-16",domain:"source",priority:"S",text:"An archival policy must be defined for deprecated service docs: archive (read-only) with a deprecation banner, not delete",rationale:"Deleted docs lose institutional history; archiving preserves context while signalling content is no longer maintained",votes:{},discussions:[],status:"open"},
   {id:"SC-17",domain:"source",priority:"S",text:"A doc-debt label or Jira component must be established for tracking known doc gaps, stale pages, and orphaned content",rationale:"Without a formal tracking mechanism, doc debt is invisible and deprioritised across teams",votes:{},discussions:[],status:"open"},
   {id:"SC-18",domain:"source",priority:"S",text:"Orphaned doc detection (docs referencing deprecated code paths or services) must be part of the scheduled CI quality job",rationale:"As services evolve, runbooks and API references drift from reality; automated detection surfaces these before they cause operational incidents",votes:{},discussions:[],status:"open"},
+  {id:"SC-19",domain:"source",priority:"M",text:"The Docs-as-Code standard must define required outcomes, not mandated tooling — teams may use any compliant toolchain provided they meet all pipeline, publish, and quality outcomes",rationale:"HWInf has diverse implementations (GitLab, Perforce, NVDocs RST, Talos, CI DaaS) — mandating specific tools would exclude valid existing implementations; outcome-based standards allow tooling diversity while maintaining consistency",votes:{philip:"agree",ryan_r:"agree"},discussions:[{author:"ryan_r",text:"This is the principle that makes NVDocs a compliant implementation rather than an exception — it needs to be explicitly stated",ts:"Jun 9"},{author:"philip",text:"Aligned — the registry will surface compliant implementations so teams can choose a proven path rather than build from scratch",ts:"Jun 9"}],status:"open"},
 
   // ── AUTHORING FORMAT ─────────────────────────────────────────────────────
   {id:"AF-1",domain:"authoring",priority:"M",text:"Markdown (CommonMark) is the standard authoring format for HWInf Docs-as-Code",rationale:"Used by 6 of 7 existing implementations; widely supported; developer-friendly",votes:{philip:"agree",bryan:"agree",george:"agree",matt:"agree"},discussions:[{author:"ryan_r",text:"NVDocs uses RST — we need to explicitly document this as a supported exception, not a violation",ts:"Jun 5"}],status:"open"},
@@ -109,6 +111,7 @@ const INITIAL_REQS = [
   {id:"CI-9",domain:"cicd",priority:"M",text:"A Perforce-compatible pipeline template (or trigger bridge) for docs lint + publish must be owned by a named team",rationale:"P4 pipelines cannot use GitLab include templates directly; Jason flagged this as an open ownership gap at kick-off",votes:{},discussions:[],status:"open"},
   {id:"CI-10",domain:"cicd",priority:"S",text:"All pipeline secrets (Confluence tokens, Slack webhooks) must be stored in a standard secrets manager — no hardcoded values in CI YAML",rationale:"Hardcoded tokens are a security risk and create per-repo maintenance burden when credentials rotate",votes:{},discussions:[],status:"open"},
   {id:"CI-11",domain:"cicd",priority:"S",text:"A token rotation policy must be defined for all CI service accounts used by the docs pipeline",rationale:"Long-lived unrotated tokens are a persistent security vulnerability; rotation cadence TBD (proposal: 90 days)",votes:{},discussions:[],status:"open"},
+  {id:"CI-23",domain:"cicd",priority:"M",text:"A Docs-as-Code Registry must be maintained listing all compliant HWInf implementations with their toolchain, maturity level, and contact — teams adopting DaaC must register their implementation and may choose any listed pattern as their starting point",rationale:"A registry prevents duplicate effort, surfaces proven patterns for new adopters, provides working group visibility into adoption coverage, and is the onboarding ramp that makes compliance achievable without starting from scratch",votes:{philip:"agree"},discussions:[{author:"philip",text:"The registry is a separate artifact from this tracker — it will list implementations like Test Auto Pipeline, NVDocs, Talos, GitLab FAQ as reference patterns teams can adopt",ts:"Jun 9"}],status:"open"},
 
   // ── TOKEN MANAGEMENT ─────────────────────────────────────────────────────
   {id:"CI-12",domain:"tokens",priority:"M",text:"All CI service account tokens used for Confluence publishing must be stored in a vault-compatible secrets manager — never in .gitlab-ci.yml or repo files",rationale:"Hardcoded tokens in CI YAML are the #1 cause of credential leaks in pipeline-heavy orgs; any committed token must be treated as compromised",votes:{},discussions:[],status:"open"},
@@ -160,6 +163,14 @@ const INITIAL_REQS = [
   {id:"CLM-6",domain:"clm",priority:"S",text:"When a service is deprecated, its Content Owner must explicitly archive or delete associated docs within an agreed window (proposal: 30 days) — orphaning docs without action is not permitted",rationale:"Deprecated service docs that remain live degrade search quality, mislead readers, and accumulate as invisible tech debt; a defined action window forces an explicit decision",votes:{philip:"agree"},discussions:[],status:"open"},
   {id:"CLM-7",domain:"clm",priority:"C",text:"DARA-generated refresh suggestions must include a confidence score and a human-readable diff summary to aid Content Owner review decisions",rationale:"Reviewers approving AI-generated content need context to make fast, informed decisions; a confidence score and diff summary reduces review time and increases approval quality",votes:{angela:"agree"},discussions:[{author:"angela",text:"This is already on the DARA roadmap — standardising the format here means it works consistently across all teams, not just early adopters",ts:"Jun 9"}],status:"open"},
   {id:"CLM-8",domain:"clm",priority:"C",text:"When DARA confidence falls below a defined threshold, the refresh must escalate to manual review rather than generating an MR — low-confidence suggestions must not enter the approval queue as-is",rationale:"A low-confidence AI refresh that enters the MR queue still costs reviewer time and creates risk if approved without scrutiny; escalation to manual review is the safer default",votes:{angela:"agree"},discussions:[],status:"open"},
+
+  // ── METRICS & REPORTING ───────────────────────────────────────────────────
+  {id:"MR-1",domain:"metrics",priority:"M",text:"A DaaC adoption dashboard must be maintained showing: number of registered implementations, percentage of HWInf services with compliant doc pipelines, and trend over time",rationale:"Without adoption metrics, working group leadership and HWInf stakeholders have no way to measure whether the standard is gaining traction or stalling — coverage trending is the primary signal of programme health",votes:{philip:"agree",sally:"agree"},discussions:[{author:"sally",text:"This is what I'll need to report up to Sharon — a number I can point to that shows progress",ts:"Jun 9"}],status:"open"},
+  {id:"MR-2",domain:"metrics",priority:"M",text:"A per-implementation health scorecard must be produced on a defined cadence (proposal: monthly) covering: pipeline pass rate, staleness rate, broken link rate, and CLM-5 content health score",rationale:"Aggregate adoption numbers are insufficient — teams need per-implementation feedback to know where to focus improvement effort, and leadership needs to identify implementations that are regressing",votes:{philip:"agree"},discussions:[],status:"open"},
+  {id:"MR-3",domain:"metrics",priority:"S",text:"Working group meeting cadence must include a standing metrics review — adoption coverage and health scorecard trends must be presented at each session",rationale:"Without a recurring metrics review, scorecard data becomes shelfware; embedding it in the meeting agenda creates accountability and surfaces blockers before they compound",votes:{philip:"agree",sally:"agree"},discussions:[],status:"open"},
+  {id:"MR-4",domain:"metrics",priority:"S",text:"A time-to-compliance metric must be tracked for each new implementation: time from registry registration to first fully compliant pipeline run",rationale:"Time-to-compliance measures whether the onboarding ramp (registry, templates, CI includes) is working; high median time signals that the standard is too hard to adopt and needs tooling investment",votes:{},discussions:[{author:"philip",text:"This metric directly validates whether the DaaC Registry is doing its job as an onboarding accelerator",ts:"Jun 9"}],status:"open"},
+  {id:"MR-5",domain:"metrics",priority:"S",text:"Requirement convergence rate in this tracker must be reported to working group leadership monthly — percentage of requirements at Converging status is the leading indicator of standards readiness",rationale:"The tracker itself is a metric — convergence rate shows how close the working group is to having an agreed standard, and provides Sally and leadership visibility into working group progress",votes:{philip:"agree",sally:"agree"},discussions:[],status:"open"},
+  {id:"MR-6",domain:"metrics",priority:"C",text:"An executive summary report must be auto-generated from tracker and adoption dashboard data on a quarterly basis for HWInf leadership consumption",rationale:"Leadership needs a high-level view without navigating the full tracker; a quarterly auto-generated summary keeps stakeholders informed with minimal working group overhead",votes:{sally:"agree"},discussions:[{author:"sally",text:"Sharon would find this useful — a one-pager showing where we are against the Q3 FY27 target",ts:"Jun 9"}],status:"open"},
 ];
 
 const INITIAL_DECISIONS = [
@@ -176,6 +187,8 @@ const INITIAL_DECISIONS = [
   {id:11,date:"Jun 9, 2026",text:"Who owns the Content Owner registry must be agreed — SCM team centrally, or each service team self-registers against a shared schema",by:"Working Group — open",status:"open"},
   {id:12,date:"Jun 9, 2026",text:"DARA approval gate model must be agreed — single Content Owner approval sufficient, or working group sign-off required for high-impact pages",by:"Working Group — open",status:"open"},
   {id:13,date:"Jun 9, 2026",text:"DARA confidence threshold for escalation to manual review must be defined — below what score does an AI refresh bypass the MR queue",by:"Working Group — open",status:"open"},
+  {id:14,date:"Jun 9, 2026",text:"DaaC adoption dashboard owner must be agreed — who builds and maintains the metrics pipeline feeding the scorecard",by:"Working Group — open",status:"open"},
+  {id:15,date:"Jun 9, 2026",text:"DaaC Registry ownership and governance model must be agreed — who approves new implementations for listing, and what criteria must they meet",by:"Working Group — open",status:"open"},
 ];
 
 const PRIORITY_COLORS = {M:"#E74C3C",S:"#F39C12",C:"#3498DB",W:"#95A5A6"};
