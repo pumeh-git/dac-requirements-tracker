@@ -34,7 +34,7 @@
 <script type="text/babel">
 const { useState, useEffect, useRef } = React;
 
-const DATA_VERSION = "v7"; // bump this to force a localStorage reset
+const DATA_VERSION = "v9"; // bump this to force a localStorage reset
 const STORAGE_KEY = "dac-wg-reqs";
 
 const MEMBERS = [
@@ -60,6 +60,7 @@ const DOMAINS = [
   { id:"taxonomy",   label:"Taxonomy & Contract",   icon:"⊞" },
   { id:"versioning", label:"Versioning",            icon:"◷" },
   { id:"ai",         label:"AI Readiness",          icon:"◉" },
+  { id:"clm",        label:"Content Lifecycle",      icon:"↻" },
 ];
 
 const INITIAL_REQS = [
@@ -116,6 +117,7 @@ const INITIAL_REQS = [
   {id:"CI-15",domain:"tokens",priority:"S",text:"Token scope must be least-privilege: Confluence publish tokens must have write access only to the designated DaaS space, not org-wide",rationale:"Over-permissioned tokens turn a compromised credential into an org-wide content risk",votes:{},discussions:[],status:"open"},
   {id:"CI-16",domain:"tokens",priority:"S",text:"A token ownership registry must be maintained covering: owner, expiry date, scope, and associated pipelines — stored in a designated Confluence page or internal tool",rationale:"Without a registry, token sprawl is invisible; no one knows what is expiring or who owns what until a pipeline fails",votes:{},discussions:[],status:"open"},
   {id:"CI-17",domain:"tokens",priority:"C",text:"Pipeline failures caused by expired or revoked tokens must surface a human-readable error identifying the token name and owner, not a raw 401",rationale:"Raw auth failures waste hours of debugging; named error messages route the issue to the right person immediately",votes:{},discussions:[],status:"open"},
+  {id:"CI-22",domain:"tokens",priority:"M",text:"CI service account tokens must be owned by a team distribution list, not a named individual — the DL is the notification target for rotation reminders, expiry alerts, and pipeline failure emails",rationale:"Individual token ownership goes dark when that person leaves or is on vacation; a team DL ensures shared visibility, resilience to personnel changes, and consistent with the group-alias principle already required in CODEOWNERS (SC-14)",votes:{},discussions:[],status:"open"},
 
   // ── AUTHORSHIP ATTRIBUTION ───────────────────────────────────────────────
   {id:"CI-18",domain:"authorship",priority:"M",text:"Published Confluence pages must display the human git author, not the CI service account, as the page creator and last editor",rationale:"Service account authorship breaks ownership routing, Glean search attribution, staleness tracking, and audit trails — the bot name tells readers nothing",votes:{},discussions:[],status:"open"},
@@ -148,6 +150,16 @@ const INITIAL_REQS = [
   {id:"AI-3",domain:"ai",priority:"S",text:"Agentic doc refresh workflows must be compatible with the standard CI pipeline",rationale:"Angela's Auto Doc Refresh project needs to hook into whatever CI pipeline is defined",votes:{angela:"agree"},discussions:[{author:"angela",text:"Once we have a standard pipeline agreed, this becomes immediately actionable",ts:"Jun 3"}],status:"open"},
   {id:"AI-4",domain:"ai",priority:"S",text:"Source docs must avoid deeply nested heading structures (max H3 within a section) to ensure AI agents can parse and chunk content reliably",rationale:"LLMs and RAG pipelines perform poorly on deeply nested or inconsistently structured Markdown; flat, predictable headings improve retrieval quality",votes:{},discussions:[],status:"open"},
   {id:"AI-5",domain:"ai",priority:"S",text:"Code examples in docs must be fenced with language identifiers (e.g. \`\`\`python, \`\`\`bash) for AI-assisted code extraction and syntax validation",rationale:"Language-tagged fences enable tooling to extract, validate, and reuse code examples; untagged blocks are opaque to agents",votes:{},discussions:[],status:"open"},
+
+  // ── CONTENT LIFECYCLE MANAGEMENT ─────────────────────────────────────────
+  {id:"CLM-1",domain:"clm",priority:"M",text:"Every doc set must have a named Content Owner (person or team DL) responsible for accuracy and currency",rationale:"Without a named owner, staleness alerts have no one to route to, AI-proposed refreshes have no approver, and deprecated docs have no one to archive them",votes:{angela:"agree"},discussions:[{author:"angela",text:"DARA needs a Content Owner field to know who to route refresh MRs to — this is a hard dependency for the project",ts:"Jun 9"}],status:"open"},
+  {id:"CLM-2",domain:"clm",priority:"M",text:"A review cadence must be defined per doc type: runbooks every 6 months, reference docs every 12 months, process docs evergreen unless triggered by a code change",rationale:"A single org-wide staleness threshold is too blunt; different content types decay at different rates and need appropriately calibrated review windows",votes:{philip:"agree"},discussions:[],status:"open"},
+  {id:"CLM-3",domain:"clm",priority:"M",text:"AI-proposed content refreshes (DARA or equivalent) must go through a human approval step before publishing to Confluence — auto-publish without review is prohibited",rationale:"AI-generated content can hallucinate or introduce subtle errors; a human gate before Confluence publish protects the integrity of org documentation at scale",votes:{angela:"agree",philip:"agree"},discussions:[{author:"angela",text:"DARA is designed with a human-in-the-loop model — this requirement formalises what the project already assumes",ts:"Jun 9"}],status:"open"},
+  {id:"CLM-4",domain:"clm",priority:"S",text:"The Content Owner must be the approver for AI-generated refresh MRs — approval cannot be delegated to the CI service account or a generic bot reviewer",rationale:"Bot-approved AI content creates a fully automated publish loop with no human accountability; the Content Owner's approval is the quality gate",votes:{angela:"agree"},discussions:[],status:"open"},
+  {id:"CLM-5",domain:"clm",priority:"S",text:"A content health score must be defined per doc set combining: staleness against cadence, broken link count, and coverage against the TX-1 minimum documentation contract",rationale:"Individual signals (staleness alone, broken links alone) are insufficient; a composite health score gives Content Owners and working group leadership a single actionable metric",votes:{},discussions:[{author:"angela",text:"DARA already computes a freshness signal internally — aligning on a shared health score definition would let DARA feed the org-wide dashboard directly",ts:"Jun 9"}],status:"open"},
+  {id:"CLM-6",domain:"clm",priority:"S",text:"When a service is deprecated, its Content Owner must explicitly archive or delete associated docs within an agreed window (proposal: 30 days) — orphaning docs without action is not permitted",rationale:"Deprecated service docs that remain live degrade search quality, mislead readers, and accumulate as invisible tech debt; a defined action window forces an explicit decision",votes:{philip:"agree"},discussions:[],status:"open"},
+  {id:"CLM-7",domain:"clm",priority:"C",text:"DARA-generated refresh suggestions must include a confidence score and a human-readable diff summary to aid Content Owner review decisions",rationale:"Reviewers approving AI-generated content need context to make fast, informed decisions; a confidence score and diff summary reduces review time and increases approval quality",votes:{angela:"agree"},discussions:[{author:"angela",text:"This is already on the DARA roadmap — standardising the format here means it works consistently across all teams, not just early adopters",ts:"Jun 9"}],status:"open"},
+  {id:"CLM-8",domain:"clm",priority:"C",text:"When DARA confidence falls below a defined threshold, the refresh must escalate to manual review rather than generating an MR — low-confidence suggestions must not enter the approval queue as-is",rationale:"A low-confidence AI refresh that enters the MR queue still costs reviewer time and creates risk if approved without scrutiny; escalation to manual review is the safer default",votes:{angela:"agree"},discussions:[],status:"open"},
 ];
 
 const INITIAL_DECISIONS = [
@@ -161,6 +173,9 @@ const INITIAL_DECISIONS = [
   {id:8,date:"Jun 8, 2026",text:"Token expiry notification target must be agreed — working group channel, token owner only, or both",by:"Working Group — open",status:"open"},
   {id:9,date:"Jun 8, 2026",text:"Mechanism for injecting human authorship into Confluence at publish time must be agreed — page properties, byline macro, or custom metadata field",by:"Working Group — open",status:"open"},
   {id:10,date:"Jun 8, 2026",text:"Source of truth for authorship attribution must be agreed — git commit author, MR approver, or CODEOWNERS entry",by:"Working Group — open",status:"open"},
+  {id:11,date:"Jun 9, 2026",text:"Who owns the Content Owner registry must be agreed — SCM team centrally, or each service team self-registers against a shared schema",by:"Working Group — open",status:"open"},
+  {id:12,date:"Jun 9, 2026",text:"DARA approval gate model must be agreed — single Content Owner approval sufficient, or working group sign-off required for high-impact pages",by:"Working Group — open",status:"open"},
+  {id:13,date:"Jun 9, 2026",text:"DARA confidence threshold for escalation to manual review must be defined — below what score does an AI refresh bypass the MR queue",by:"Working Group — open",status:"open"},
 ];
 
 const PRIORITY_COLORS = {M:"#E74C3C",S:"#F39C12",C:"#3498DB",W:"#95A5A6"};
