@@ -34,7 +34,7 @@
 <script type="text/babel">
 const { useState, useEffect, useRef } = React;
 
-const DATA_VERSION = "v9"; // bump this to force a localStorage reset
+const DATA_VERSION = "v10"; // bump this to force a localStorage reset
 const STORAGE_KEY = "dac-wg-reqs";
 
 const MEMBERS = [
@@ -286,7 +286,7 @@ function App(){
             {["requirements","decisions","dashboard"].map(t=>(
               <button key={t} className={`tab-btn${tab===t?" active":""}`} onClick={()=>setTab(t)} style={{textTransform:"capitalize"}}>{t}</button>
             ))}
-            <button onClick={resetAll} style={{marginLeft:"auto",background:"none",border:"none",color:"#333",fontSize:11,cursor:"pointer",padding:"8px 12px",fontFamily:"inherit"}}>↺ Reset</button>
+            <button onClick={resetAll} style={{marginLeft:"auto",background:"none",border:"1px solid #76B90050",color:"#76B900",fontSize:11,cursor:"pointer",padding:"6px 14px",fontFamily:"inherit",borderRadius:6,fontWeight:600}}>↺ Reset</button>
           </div>
         </div>
       </div>
