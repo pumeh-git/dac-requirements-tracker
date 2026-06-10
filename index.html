@@ -34,7 +34,7 @@
 <script type="text/babel">
 const { useState, useEffect, useRef } = React;
 
-const DATA_VERSION = "v19"; // bump this to force a localStorage reset
+const DATA_VERSION = "v20"; // bump this to force a localStorage reset
 const STORAGE_KEY = "dac-wg-reqs";
 
 const MEMBERS = [
@@ -284,8 +284,8 @@ function App(){
   return (
     <div style={{fontFamily:"'DM Sans','Segoe UI',sans-serif",background:"#0a0a0f",minHeight:"100vh",color:"#e0e0e0"}}>
       {!identityLocked&&(
-        <div style={{position:"fixed",inset:0,background:"#0a0a0fee",zIndex:999,display:"flex",alignItems:"center",justifyContent:"center"}}>
-          <div style={{background:"#0e0e18",border:"1px solid #76B90040",borderRadius:14,padding:36,maxWidth:400,width:"90%",textAlign:"center"}}>
+        <div style={{minHeight:"100vh",background:"#0a0a0fee",display:"flex",alignItems:"center",justifyContent:"center",padding:"40px 20px"}}>
+          <div style={{background:"#0e0e18",border:"1px solid #76B90040",borderRadius:14,padding:36,maxWidth:400,width:"100%",textAlign:"center"}}>
             <div style={{fontSize:10,fontFamily:"'DM Mono',monospace",color:"#76B900",letterSpacing:3,textTransform:"uppercase",marginBottom:12}}>NVIDIA · HWInf · Docs-as-Code</div>
             <h2 style={{fontSize:18,fontWeight:700,color:"#fff",marginBottom:8}}>Requirements Tracker</h2>
             <p style={{fontSize:13,color:"#555",marginBottom:24,lineHeight:1.6}}>Select your name to continue. Your identity is stored on this device only — votes are cast as you.</p>
