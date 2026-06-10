@@ -34,7 +34,7 @@
 <script type="text/babel">
 const { useState, useEffect, useRef } = React;
 
-const DATA_VERSION = "v17"; // bump this to force a localStorage reset
+const DATA_VERSION = "v19"; // bump this to force a localStorage reset
 const STORAGE_KEY = "dac-wg-reqs";
 
 const MEMBERS = [
@@ -101,7 +101,7 @@ const INITIAL_REQS = [
   // ── CI/CD QUALITY ────────────────────────────────────────────────────────
   {id:"CI-1",domain:"cicd",priority:"M",text:"A shared GitLab CI include template for docs lint + publish must be provided",rationale:"Reduces per-team setup cost; Test Auto Pipeline already has templates/source-repo-ci.yml",votes:{},discussions:[],status:"open"},
   {id:"CI-2",domain:"cicd",priority:"M",text:"Markdown lint (markdownlint) must run on every MR touching docs/**",rationale:"Catches structural issues early; all teams align on shared .markdownlint.json config",votes:{},discussions:[],status:"open"},
-  {id:"CI-3",domain:"cicd",priority:"S",text:"Vale + NVIDIA prose rules must run as part of the standard CI pipeline",rationale:"Only Philip's PoC has this today — brings style/tone consistency org-wide",votes:{},discussions:[{author:"matt",text:"Where would the shared NVIDIA Vale rules live? Needs a home everyone can pull from",ts:"Jun 5"}],status:"open"},
+  {id:"CI-3",domain:"cicd",priority:"S",text:"Vale + NVIDIA prose rules must run as part of the standard CI pipeline",rationale:"Only Philip's PoC has this today — brings style/tone consistency org-wide",votes:{},discussions:[],status:"open"},
   {id:"CI-4",domain:"cicd",priority:"M",text:"Link validation must run on every MR touching docs/**",rationale:"Broken links erode doc trust; Test Auto Pipeline already has validate_links.py",votes:{},discussions:[],status:"open"},
   {id:"CI-5",domain:"cicd",priority:"S",text:"A make docs or equivalent standard hook must be defined for all participating repos",rationale:"CI DaaS proposes this as the standard entry point — consistent across all pipelines",votes:{},discussions:[],status:"open"},
   {id:"CI-6",domain:"cicd",priority:"S",text:"Phased release gate: soft gate (non-blocking) to hard gate (blocks release) on docs failures",rationale:"CI DaaS model — allows teams to ramp without disrupting existing release pipelines",votes:{},discussions:[{author:"ryan_r",text:"Strongly recommend distributed services architecture — don't build monolithic tooling around Confluence",ts:"Jun 5"},{author:"jason",text:"Hard gate (no docs = no release) should be the long-term target but we phase into it",ts:"Jun 5"}],status:"open"},
@@ -201,6 +201,7 @@ function App(){
   const [newReqPriority,setNewReqPriority]=useState("M");
   const [tab,setTab]=useState("requirements");
   const [showAddReq,setShowAddReq]=useState(false);
+  const [editingComment,setEditingComment]=useState(null); // {reqId, idx, text}
 
   useEffect(()=>{try{localStorage.setItem(STORAGE_KEY,JSON.stringify({version:DATA_VERSION,reqs,decisions}));}catch(e){}},[reqs,decisions]);
 
@@ -220,6 +221,15 @@ function App(){
     const now=new Date().toLocaleDateString("en-US",{month:"short",day:"numeric"});
     setReqs(prev=>prev.map(r=>r.id===reqId?{...r,discussions:[...r.discussions,{author:activeMember,text:newComment.trim(),ts:now}]}:r));
     setNewComment("");
+  };
+
+  const deleteComment=(reqId,idx)=>{
+    setReqs(prev=>prev.map(r=>r.id===reqId?{...r,discussions:r.discussions.filter((_,i)=>i!==idx)}:r));
+  };
+
+  const saveEditComment=(reqId,idx,newText)=>{
+    if(!newText.trim())return;
+    setReqs(prev=>prev.map(r=>r.id===reqId?{...r,discussions:r.discussions.map((d,i)=>i===idx?{...d,text:newText.trim(),edited:true}:d)}:r));
   };
 
   const addDecision=()=>{
@@ -477,13 +487,30 @@ function App(){
                     {activeReqData.discussions.length===0&&<p style={{fontSize:12,color:"#333",fontStyle:"italic",padding:"8px 0"}}>No comments yet — start the discussion</p>}
                     {activeReqData.discussions.map((d,i)=>{
                       const m=MEMBERS.find(x=>x.id===d.author);
+                      const isEditing=editingComment&&editingComment.reqId===activeReqData.id&&editingComment.idx===i;
+                      const isOwn=d.author===activeMember;
                       return(
                         <div key={i} style={{marginBottom:8,padding:"8px 10px",background:"#111",borderRadius:6,borderLeft:`2px solid ${m?.color||"#555"}`}}>
                           <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
                             <span style={{fontSize:11,fontWeight:700,color:m?.color||"#aaa"}}>{m?.name||d.author}</span>
-                            <span style={{fontSize:10,color:"#444"}}>{d.ts}</span>
+                            <span style={{fontSize:10,color:"#444"}}>{d.ts}{d.edited&&<span style={{color:"#444",fontStyle:"italic"}}> · edited</span>}</span>
+                            {isOwn&&!isEditing&&(
+                              <span style={{marginLeft:"auto",display:"flex",gap:4}}>
+                                <button onClick={()=>setEditingComment({reqId:activeReqData.id,idx:i,text:d.text})} style={{background:"none",border:"none",color:"#555",cursor:"pointer",fontSize:11,padding:"0 4px"}} title="Edit">✎</button>
+                                <button onClick={()=>{if(window.confirm("Delete this comment?"))deleteComment(activeReqData.id,i);}} style={{background:"none",border:"none",color:"#555",cursor:"pointer",fontSize:11,padding:"0 4px"}} title="Delete">✕</button>
+                              </span>
+                            )}
                           </div>
-                          <p style={{fontSize:12,color:"#aaa",lineHeight:1.5}}>{d.text}</p>
+                          {isEditing
+                            ? <div style={{display:"flex",gap:6,marginTop:4}}>
+                                <textarea value={editingComment.text} onChange={e=>setEditingComment({...editingComment,text:e.target.value})} rows={2} style={{flex:1,padding:"6px 8px",fontSize:12,resize:"none"}}/>
+                                <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                                  <button onClick={()=>{saveEditComment(activeReqData.id,i,editingComment.text);setEditingComment(null);}} style={{padding:"4px 10px",background:"#76B900",border:"none",borderRadius:4,color:"#000",fontWeight:700,fontSize:11,cursor:"pointer"}}>Save</button>
+                                  <button onClick={()=>setEditingComment(null)} style={{padding:"4px 10px",background:"none",border:"1px solid #333",borderRadius:4,color:"#666",fontSize:11,cursor:"pointer"}}>Cancel</button>
+                                </div>
+                              </div>
+                            : <p style={{fontSize:12,color:"#aaa",lineHeight:1.5,margin:0}}>{d.text}</p>
+                          }
                         </div>
                       );
                     })}
