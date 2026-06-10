@@ -34,7 +34,7 @@
 <script type="text/babel">
 const { useState, useEffect, useRef } = React;
 
-const DATA_VERSION = "v24"; // bump this to force a localStorage reset
+const DATA_VERSION = "v25"; // bump this to force a localStorage reset
 const STORAGE_KEY = "dac-wg-reqs";
 
 const MEMBERS = [
@@ -437,7 +437,9 @@ function App(){
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
                   <div style={{display:"flex",alignItems:"center",gap:8}}>
                     <span style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:"#555"}}>{activeReqData.id}</span>
-                    <span title={`${PRIORITY_LABELS[activeReqData.priority]} — ${activeReqData.priority === "M" ? "Non-negotiable" : activeReqData.priority === "S" ? "Strongly recommended" : activeReqData.priority === "C" ? "Nice to have" : "Out of scope"}`} style={{background:PRIORITY_COLORS[activeReqData.priority]+"22",color:PRIORITY_COLORS[activeReqData.priority],border:`1px solid ${PRIORITY_COLORS[activeReqData.priority]}40`,borderRadius:4,padding:"2px 8px",fontSize:11,fontWeight:700,cursor:"help"}}>{PRIORITY_LABELS[activeReqData.priority]}</span>
+                    <select value={activeReqData.priority} onChange={e=>{const p=e.target.value;setReqs(prev=>prev.map(r=>r.id===activeReqData.id?{...r,priority:p}:r));}} style={{background:PRIORITY_COLORS[activeReqData.priority]+"22",color:PRIORITY_COLORS[activeReqData.priority],border:`1px solid ${PRIORITY_COLORS[activeReqData.priority]}40`,borderRadius:4,padding:"2px 6px",fontSize:11,fontWeight:700,cursor:"pointer",outline:"none"}}>
+                      {["M","S","C","W"].map(p=><option key={p} value={p} style={{background:"#1a1a1a",color:PRIORITY_COLORS[p]}}>{PRIORITY_LABELS[p]} ({p})</option>)}
+                    </select>
                   </div>
                   <button onClick={()=>setActiveReq(null)} style={{background:"none",border:"none",color:"#555",cursor:"pointer",fontSize:18,lineHeight:1,padding:"0 4px"}}>×</button>
                 </div>
