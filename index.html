@@ -32,10 +32,12 @@
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const { useState, useEffect, useRef } = React;
+const { useState, useEffect, useRef, useCallback } = React;
 
-const DATA_VERSION = "v31"; // bump this to force a localStorage reset
+const DATA_VERSION = "v32"; // bump this to force a localStorage reset
 const STORAGE_KEY = "dac-wg-reqs";
+const SHEETS_URL = "https://script.google.com/a/macros/nvidia.com/s/AKfycbykfYxxFuTHHH3teW643-1pcDgFCU7zh_3MUbzzqUaaAEidHU1F6NBur_XHwO8E6Wk9/exec"; // ← PASTE YOUR APPS SCRIPT WEB APP URL HERE
+const SYNC_INTERVAL_MS = 15000; // pull from sheet every 15 seconds
 
 const MEMBERS = [
   { id:"philip",  name:"Philip Umeh",       role:"Driver · HWInf Docs/SCM",    avatar:"PU", color:"#76B900" },
@@ -219,7 +221,62 @@ function App(){
   const [showAddReq,setShowAddReq]=useState(false);
   const [editingComment,setEditingComment]=useState(null); // {reqId, idx, text}
 
-  useEffect(()=>{try{localStorage.setItem(STORAGE_KEY,JSON.stringify({version:DATA_VERSION,reqs,decisions}));}catch(e){}},[reqs,decisions]);
+  const [syncStatus,setSyncStatus]=useState("idle"); // idle | syncing | synced | error
+  const [lastSync,setLastSync]=useState(null);
+  const isSyncing=useRef(false);
+
+  // Save to localStorage on every change (instant, local)
+  useEffect(()=>{
+    try{localStorage.setItem(STORAGE_KEY,JSON.stringify({version:DATA_VERSION,reqs,decisions}));}catch(e){}
+  },[reqs,decisions]);
+
+  // Push to Google Sheets (debounced 2s after last change)
+  const pushTimer=useRef(null);
+  useEffect(()=>{
+    if(!SHEETS_URL)return;
+    clearTimeout(pushTimer.current);
+    pushTimer.current=setTimeout(()=>pushToSheets(reqs,decisions),[2000]);
+    return()=>clearTimeout(pushTimer.current);
+  },[reqs,decisions]);
+
+  // Pull from Google Sheets on interval
+  useEffect(()=>{
+    if(!SHEETS_URL)return;
+    pullFromSheets();
+    const interval=setInterval(pullFromSheets,SYNC_INTERVAL_MS);
+    return()=>clearInterval(interval);
+  },[]);
+
+  const pushToSheets=async(r,d)=>{
+    if(!SHEETS_URL||isSyncing.current)return;
+    try{
+      setSyncStatus("syncing");
+      await fetch(SHEETS_URL,{method:"POST",body:JSON.stringify({
+        action:"write_all",
+        data:{reqs:r,decisions:d,version:DATA_VERSION}
+      })});
+      setSyncStatus("synced");
+      setLastSync(new Date());
+    }catch(e){setSyncStatus("error");}
+  };
+
+  const pullFromSheets=async()=>{
+    if(!SHEETS_URL||isSyncing.current)return;
+    isSyncing.current=true;
+    try{
+      const res=await fetch(`${SHEETS_URL}?action=read`);
+      const json=await res.json();
+      if(json.ok&&json.data){
+        if(json.data.version===DATA_VERSION){
+          if(json.data.reqs)setReqs(json.data.reqs);
+          if(json.data.decisions)setDecisions(json.data.decisions);
+          setLastSync(new Date());
+          setSyncStatus("synced");
+        }
+      }
+    }catch(e){setSyncStatus("error");}
+    finally{isSyncing.current=false;}
+  };
 
   const castVote=(reqId,vote)=>{
     setReqs(prev=>prev.map(r=>{
@@ -336,7 +393,18 @@ function App(){
               <button key={t} className={`tab-btn${tab===t?" active":""}`} onClick={()=>setTab(t)} style={{textTransform:"capitalize"}}>{t==="min-reqs"?"Min Requirements":t}</button>
             ))}
             <a href="https://claude.ai/design/p/2bb2295e-fb07-4f52-b4ba-d73e32ac13e0?file=index.html&via=share" target="_blank" rel="noopener noreferrer" style={{padding:"8px 18px",fontSize:13,fontWeight:600,color:"#666",textDecoration:"none",borderBottom:"2px solid transparent",transition:"all .15s",fontFamily:"inherit"}} onMouseOver={e=>{e.target.style.color="#aaa"}} onMouseOut={e=>{e.target.style.color="#666"}}>Docs-as-Code Registry ↗</a>
-            <button onClick={resetAll} style={{marginLeft:"auto",background:"none",border:"1px solid #76B90050",color:"#76B900",fontSize:11,cursor:"pointer",padding:"6px 14px",fontFamily:"inherit",borderRadius:6,fontWeight:600}}>↺ Reset</button>
+            <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8}}>
+              {SHEETS_URL&&(
+                <span title={lastSync?`Last synced: ${lastSync.toLocaleTimeString()}`:"Not yet synced"} style={{fontSize:10,fontFamily:"'DM Mono',monospace",color:syncStatus==="synced"?"#76B900":syncStatus==="error"?"#E74C3C":syncStatus==="syncing"?"#F39C12":"#444",display:"flex",alignItems:"center",gap:4}}>
+                  <span style={{width:6,height:6,borderRadius:"50%",background:syncStatus==="synced"?"#76B900":syncStatus==="error"?"#E74C3C":syncStatus==="syncing"?"#F39C12":"#444",display:"inline-block"}}/>
+                  {syncStatus==="synced"?"Synced":syncStatus==="syncing"?"Syncing…":syncStatus==="error"?"Sync error":"No sync"}
+                </span>
+              )}
+              {!SHEETS_URL&&(
+                <span style={{fontSize:10,color:"#555",fontFamily:"'DM Mono',monospace"}}>⚠ Local only</span>
+              )}
+              <button onClick={resetAll} style={{background:"none",border:"1px solid #76B90050",color:"#76B900",fontSize:11,cursor:"pointer",padding:"6px 14px",fontFamily:"inherit",borderRadius:6,fontWeight:600}}>↺ Reset</button>
+            </div>
           </div>
           {!identityLocked&&(
             <div style={{background:"#76B90010",border:"1px solid #76B90030",borderRadius:6,padding:"10px 14px",margin:"8px 0",display:"flex",alignItems:"center",gap:10}}>
