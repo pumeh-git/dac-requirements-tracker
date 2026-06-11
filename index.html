@@ -34,9 +34,9 @@
 <script type="text/babel">
 const { useState, useEffect, useRef, useCallback } = React;
 
-const DATA_VERSION = "v33"; // bump this to force a localStorage reset
+const DATA_VERSION = "v34"; // bump this to force a localStorage reset
 const STORAGE_KEY = "dac-wg-reqs";
-const SHEETS_URL = "https://dac-tracker-sync.pnumeh.workers.dev"; // ← PASTE YOUR CLOUDFLARE WORKER URL HERE (e.g. https://dac-tracker-sync.pnumeh.workers.dev)
+const SYNC_URL = "https://dac-tracker-confluence.pnumeh.workers.dev"; // ← PASTE YOUR NEW WORKER URL HERE (e.g. https://dac-tracker-confluence.pnumeh.workers.dev)
 const SYNC_INTERVAL_MS = 15000; // pull from sheet every 15 seconds
 
 const MEMBERS = [
@@ -233,25 +233,25 @@ function App(){
   // Push to Google Sheets (debounced 2s after last change)
   const pushTimer=useRef(null);
   useEffect(()=>{
-    if(!SHEETS_URL)return;
+    if(!SYNC_URL)return;
     clearTimeout(pushTimer.current);
-    pushTimer.current=setTimeout(()=>pushToSheets(reqs,decisions),[2000]);
+    pushTimer.current=setTimeout(()=>pushToSync(reqs,decisions),[2000]);
     return()=>clearTimeout(pushTimer.current);
   },[reqs,decisions]);
 
   // Pull from Google Sheets on interval
   useEffect(()=>{
-    if(!SHEETS_URL)return;
-    pullFromSheets();
-    const interval=setInterval(pullFromSheets,SYNC_INTERVAL_MS);
+    if(!SYNC_URL)return;
+    pullFromSync();
+    const interval=setInterval(pullFromSync,SYNC_INTERVAL_MS);
     return()=>clearInterval(interval);
   },[]);
 
   const pushToSheets=async(r,d)=>{
-    if(!SHEETS_URL||isSyncing.current)return;
+    if(!SYNC_URL||isSyncing.current)return;
     try{
       setSyncStatus("syncing");
-      await fetch(SHEETS_URL,{method:"POST",body:JSON.stringify({
+      await fetch(SYNC_URL,{method:"POST",body:JSON.stringify({
         action:"write_all",
         data:{reqs:r,decisions:d,version:DATA_VERSION}
       })});
@@ -261,10 +261,10 @@ function App(){
   };
 
   const pullFromSheets=async()=>{
-    if(!SHEETS_URL||isSyncing.current)return;
+    if(!SYNC_URL||isSyncing.current)return;
     isSyncing.current=true;
     try{
-      const res=await fetch(`${SHEETS_URL}?action=read`);
+      const res=await fetch(`${SYNC_URL}?action=read`);
       const json=await res.json();
       if(json.ok&&json.data){
         if(json.data.version===DATA_VERSION){
@@ -394,13 +394,13 @@ function App(){
             ))}
             <a href="https://claude.ai/design/p/2bb2295e-fb07-4f52-b4ba-d73e32ac13e0?file=index.html&via=share" target="_blank" rel="noopener noreferrer" style={{padding:"8px 18px",fontSize:13,fontWeight:600,color:"#666",textDecoration:"none",borderBottom:"2px solid transparent",transition:"all .15s",fontFamily:"inherit"}} onMouseOver={e=>{e.target.style.color="#aaa"}} onMouseOut={e=>{e.target.style.color="#666"}}>Docs-as-Code Registry ↗</a>
             <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8}}>
-              {SHEETS_URL&&(
+              {SYNC_URL&&(
                 <span title={lastSync?`Last synced: ${lastSync.toLocaleTimeString()}`:"Not yet synced"} style={{fontSize:10,fontFamily:"'DM Mono',monospace",color:syncStatus==="synced"?"#76B900":syncStatus==="error"?"#E74C3C":syncStatus==="syncing"?"#F39C12":"#444",display:"flex",alignItems:"center",gap:4}}>
                   <span style={{width:6,height:6,borderRadius:"50%",background:syncStatus==="synced"?"#76B900":syncStatus==="error"?"#E74C3C":syncStatus==="syncing"?"#F39C12":"#444",display:"inline-block"}}/>
                   {syncStatus==="synced"?"Synced":syncStatus==="syncing"?"Syncing…":syncStatus==="error"?"Sync error":"No sync"}
                 </span>
               )}
-              {!SHEETS_URL&&(
+              {!SYNC_URL&&(
                 <span style={{fontSize:10,color:"#555",fontFamily:"'DM Mono',monospace"}}>⚠ Local only</span>
               )}
               <button onClick={resetAll} style={{background:"none",border:"1px solid #76B90050",color:"#76B900",fontSize:11,cursor:"pointer",padding:"6px 14px",fontFamily:"inherit",borderRadius:6,fontWeight:600}}>↺ Reset</button>
