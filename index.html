@@ -34,9 +34,9 @@
 <script type="text/babel">
 const { useState, useEffect, useRef, useCallback } = React;
 
-const DATA_VERSION = "v32"; // bump this to force a localStorage reset
+const DATA_VERSION = "v33"; // bump this to force a localStorage reset
 const STORAGE_KEY = "dac-wg-reqs";
-const SHEETS_URL = "https://script.google.com/a/macros/nvidia.com/s/AKfycbxW8KDHOxXDOAGYzPJ9A1x-uriForzGGH8WKQQRnilLPe17sglH6hX1eRn68D-xP59Y/exec"; // ← PASTE YOUR APPS SCRIPT WEB APP URL HERE
+const SHEETS_URL = "https://dac-tracker-sync.pnumeh.workers.dev"; // ← PASTE YOUR CLOUDFLARE WORKER URL HERE (e.g. https://dac-tracker-sync.pnumeh.workers.dev)
 const SYNC_INTERVAL_MS = 15000; // pull from sheet every 15 seconds
 
 const MEMBERS = [
